@@ -1,0 +1,69 @@
+# Chart of accounts — ABC Industrial Supplies Pvt Ltd
+# Headers are not postable. Numbering: 1 assets, 2 liabilities, 3 equity, 4 income, 5–6 expenses.
+
+accounts:
+  - {code: "100000", name: "Assets", type: asset, subtype: header, postable: false}
+  - {code: "110000", name: "Cash", type: asset, subtype: cash, postable: true}
+  - {code: "111000", name: "HDFC Bank Current", type: asset, subtype: bank, postable: true}
+  - {code: "112000", name: "ICICI Bank Current", type: asset, subtype: bank, postable: true}
+  - {code: "113000", name: "HDFC Bank OD", type: asset, subtype: bank, postable: true}
+  - {code: "120000", name: "Sundry Debtors", type: asset, subtype: debtor, postable: true, control: true}
+  - {code: "130000", name: "Inventory", type: asset, subtype: inventory, postable: true}
+  - {code: "141000", name: "Input CGST", type: asset, subtype: gst_input, postable: true}
+  - {code: "141100", name: "Input SGST", type: asset, subtype: gst_input, postable: true}
+  - {code: "141200", name: "Input IGST", type: asset, subtype: gst_input, postable: true}
+  - {code: "151000", name: "TDS Receivable", type: asset, subtype: other, postable: true}
+  - {code: "152000", name: "Prepaid Expenses", type: asset, subtype: other, postable: true}
+  - {code: "161000", name: "Furniture & Fixtures", type: asset, subtype: fixed, postable: true}
+  - {code: "161100", name: "Accumulated Depreciation - Furniture", type: asset, subtype: contra_asset, postable: true}
+  - {code: "162000", name: "Computers & Office Equipment", type: asset, subtype: fixed, postable: true}
+  - {code: "162100", name: "Accumulated Depreciation - Computers", type: asset, subtype: contra_asset, postable: true}
+
+  - {code: "200000", name: "Liabilities", type: liability, subtype: header, postable: false}
+  - {code: "210000", name: "Sundry Creditors", type: liability, subtype: creditor, postable: true, control: true}
+  - {code: "221000", name: "Output CGST", type: liability, subtype: gst_output, postable: true}
+  - {code: "221100", name: "Output SGST", type: liability, subtype: gst_output, postable: true}
+  - {code: "221200", name: "Output IGST", type: liability, subtype: gst_output, postable: true}
+  - {code: "222000", name: "GST Payable", type: liability, subtype: gst_output, postable: true}
+  - {code: "231000", name: "TDS Payable", type: liability, subtype: other, postable: true}
+  - {code: "232000", name: "Salary Payable", type: liability, subtype: other, postable: true}
+  - {code: "233000", name: "Expenses Payable", type: liability, subtype: other, postable: true}
+  - {code: "241000", name: "Term Loan", type: liability, subtype: loan, postable: true}
+
+  - {code: "300000", name: "Equity", type: equity, subtype: header, postable: false}
+  - {code: "310000", name: "Share Capital", type: equity, subtype: capital, postable: true}
+  - {code: "320000", name: "Reserves & Surplus", type: equity, subtype: reserve, postable: true}
+  - {code: "330000", name: "Profit & Loss Account", type: equity, subtype: pl, postable: true}
+
+  - {code: "400000", name: "Income", type: income, subtype: header, postable: false}
+  - {code: "410000", name: "Sales", type: income, subtype: sales, postable: true}
+  - {code: "410100", name: "Sales Returns", type: income, subtype: sales, postable: true}
+  - {code: "420000", name: "Other Income", type: income, subtype: other, postable: true}
+  - {code: "421000", name: "Interest Income", type: income, subtype: other, postable: true}
+  - {code: "422000", name: "Discount Received", type: income, subtype: other, postable: true}
+
+  - {code: "500000", name: "Direct Costs", type: expense, subtype: header, postable: false}
+  - {code: "510000", name: "Cost of Goods Sold", type: expense, subtype: cogs, postable: true}
+  - {code: "520000", name: "Freight Inward", type: expense, subtype: direct, postable: true}
+  - {code: "521000", name: "Purchase Returns", type: expense, subtype: direct, postable: true}
+
+  - {code: "600000", name: "Operating Expenses", type: expense, subtype: header, postable: false}
+  - {code: "610000", name: "Salaries", type: expense, subtype: indirect, postable: true}
+  - {code: "611000", name: "Staff Welfare", type: expense, subtype: indirect, postable: true}
+  - {code: "620000", name: "Rent", type: expense, subtype: indirect, postable: true}
+  - {code: "621000", name: "Electricity", type: expense, subtype: indirect, postable: true}
+  - {code: "622000", name: "Telephone & Internet", type: expense, subtype: indirect, postable: true}
+  - {code: "623000", name: "Insurance", type: expense, subtype: indirect, postable: true}
+  - {code: "624000", name: "Repairs & Maintenance", type: expense, subtype: indirect, postable: true}
+  - {code: "625000", name: "Fuel & Conveyance", type: expense, subtype: indirect, postable: true}
+  - {code: "626000", name: "Office Expenses", type: expense, subtype: indirect, postable: true}
+  - {code: "627000", name: "Professional Fees", type: expense, subtype: indirect, postable: true}
+  - {code: "628000", name: "Packing & Forwarding", type: expense, subtype: indirect, postable: true}
+  - {code: "629000", name: "Freight Outward", type: expense, subtype: indirect, postable: true}
+  - {code: "630000", name: "Discount Allowed", type: expense, subtype: indirect, postable: true}
+  - {code: "631000", name: "Bad Debts", type: expense, subtype: indirect, postable: true}
+  - {code: "640000", name: "Bank Charges", type: expense, subtype: finance, postable: true}
+  - {code: "641000", name: "Interest on Term Loan", type: expense, subtype: finance, postable: true}
+  - {code: "642000", name: "Interest on OD", type: expense, subtype: finance, postable: true}
+  - {code: "650000", name: "Depreciation", type: expense, subtype: depreciation, postable: true}
+  - {code: "660000", name: "GST Late Fee", type: expense, subtype: indirect, postable: true}

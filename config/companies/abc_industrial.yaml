@@ -1,0 +1,135 @@
+company:
+  code: ABC
+  legal_name: ABC Industrial Supplies Private Limited
+  short_name: ABC Industrial
+  cin: U51909MH2018PTC000001
+  pan: AABCA1234A
+  gstin: 27AABCA1234A1Z5
+  state_code: "27"
+  state_name: Maharashtra
+  city: Pune
+  industry: electrical_industrial_trading
+  gst_registration: regular
+
+calendar:
+  books_start: 2023-04-01
+  books_end: 2026-03-31
+  fiscal_years:
+    - code: FY2023-24
+      start: 2023-04-01
+      end: 2024-03-31
+      revenue_inr: "80000000.00"
+    - code: FY2024-25
+      start: 2024-04-01
+      end: 2025-03-31
+      revenue_inr: "100000000.00"
+    - code: FY2025-26
+      start: 2025-04-01
+      end: 2026-03-31
+      revenue_inr: "130000000.00"
+
+scale:
+  customers: 1200
+  vendors: 200
+  products: 350
+  employees: 50
+  branches: 5
+  warehouses: 3
+  banks: 3
+  cost_centres: 15
+
+volumes:
+  sales_invoices: 5000
+  purchase_invoices: 2500
+  receipts: 4500
+  payments: 3500
+
+customer_mix:
+  core_pct: 15
+  regular_pct: 35
+  occasional_pct: 50
+
+accounting:
+  valuation: weighted_average
+  currency: INR
+  rounding: "0.01"
+  home_state_code: "27"
+  default_gst_rate: "18.00"
+  od_limit_inr: "2500000.00"
+  furniture_slm_pct: "10.00"
+
+opex:
+  rent: "120000.00"
+  electricity: "35000.00"
+  telephone: "18000.00"
+  insurance: "15000.00"
+  repairs: "12000.00"
+  fuel: "25000.00"
+  office: "20000.00"
+  staff_welfare: "8000.00"
+  professional_quarterly: "25000.00"
+  bank_charge: "1500.00"
+
+opening_as_of: 2023-04-01
+opening:
+  # Debits (assets)
+  "110000": "500000.00"      # Cash
+  "111000": "4500000.00"     # HDFC Current
+  "112000": "2000000.00"     # ICICI Current
+  "120000": "8000000.00"     # Sundry Debtors
+  "130000": "12000000.00"    # Inventory
+  "161000": "1000000.00"     # Furniture & Fixtures
+  # Credits (liabilities + equity)
+  "210000": "6000000.00"     # Sundry Creditors
+  "241000": "5000000.00"     # Term Loan
+  "310000": "17000000.00"    # Share Capital
+
+loan:
+  account_code: "241000"
+  principal_inr: "5000000.00"
+  emi_inr: "110000.00"
+  annual_rate_pct: "12.00"
+
+banks:
+  - code: HDFC-CUR
+    gl_code: "111000"
+    name: HDFC Bank Current
+    ifsc: HDFC0001234
+    account_no: "50200011223344"
+  - code: ICICI-CUR
+    gl_code: "112000"
+    name: ICICI Bank Current
+    ifsc: ICIC0005678
+    account_no: "000405006789"
+  - code: HDFC-OD
+    gl_code: "113000"
+    name: HDFC Bank OD
+    ifsc: HDFC0001234
+    account_no: "50200011229900"
+    od_limit_inr: "2500000.00"
+
+generator:
+  seed: 20230401
+  scenario: baseline
+  skip_sundays: true
+  holidays_file: config/holidays.yaml
+
+scenarios:
+  - id: baseline
+    title: Healthy growth
+    known_cause: Sales, profit, and cash all rise
+  - id: customer_concentration
+    title: Customer concentration
+    known_cause: Top customer ~40% of revenue
+  - id: cash_flow_crisis
+    title: Cash-flow crisis
+    known_cause: Sales up, DSO up, cash down
+  - id: inventory_buildup
+    title: Inventory buildup
+    known_cause: Inventory up, sales flat
+  - id: vendor_dependency
+    title: Vendor dependency
+    known_cause: One vendor >60% of purchases
+  - id: margin_erosion
+    title: Margin erosion
+    known_cause: Purchase cost up, selling price lag
