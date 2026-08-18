@@ -19,7 +19,7 @@ from ssdv.models import PurchaseBill, SalesInvoice
 from ssdv.money import ZERO, money
 from ssdv.paths import load_company
 
-BUCKETS = ("0-30", "31-60", "61-90", "90+")
+BUCKETS = ("0-30", "31-60", "61-90", "91-120", "120+")
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,9 @@ def bucket_for(days: int) -> str:
         return "31-60"
     if days <= 90:
         return "61-90"
-    return "90+"
+    if days <= 120:
+        return "91-120"
+    return "120+"
 
 
 def ar_aging(session: Session, as_of: date) -> list[AgingLine]:
@@ -132,5 +134,6 @@ def aging_totals(rows: list[AgingLine]) -> dict[str, Decimal]:
     totals = {name: ZERO for name in BUCKETS}
     for row in rows:
         totals[row.bucket] = money(totals[row.bucket] + row.amount)
+    totals["90+"] = money(totals["91-120"] + totals["120+"])
     totals["total"] = money(sum((totals[name] for name in BUCKETS), ZERO))
     return totals

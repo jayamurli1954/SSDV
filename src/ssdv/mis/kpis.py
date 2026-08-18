@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ssdv.accounting.activity import voucher_account_net
 from ssdv.accounting.equation import EquationSnapshot, accounting_equation
-from ssdv.accounting.trial_balance import ledger_balance
+from ssdv.accounting.trial_balance import ledger_balance, trial_balance
 from ssdv.cash.aging import aging_totals, ap_aging, ar_aging
 from ssdv.cash.banks import current_bank_balances
 from ssdv.fy import fy_code, fy_start
@@ -26,6 +26,7 @@ from ssdv.gl import (
     SALES,
     TERM_LOAN,
 )
+from ssdv.mis.policy import DSO_DAYS_MAX
 from ssdv.mis.series import MonthlySeries, monthly_activity
 from ssdv.models import (
     Account,
@@ -41,6 +42,28 @@ from ssdv.money import ZERO, money
 from ssdv.paths import load_company
 from ssdv.scenarios.metrics import ScenarioMetrics, scenario_metrics, signal_holds
 from ssdv.scenarios.spec import GOLDEN, apply_scenario
+
+
+_CURRENT_ASSET_SUBTYPES = frozenset({"cash", "bank", "debtor", "inventory", "gst_input", "other"})
+_CURRENT_LIABILITY_SUBTYPES = frozenset({"creditor", "gst_output", "other"})
+
+
+def _current_position(session: Session, as_of: date) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    """Current assets / liabilities and GST input / output from postable TB rows. Term loan is excluded."""
+    assets = ZERO
+    liabilities = ZERO
+    gst_input = ZERO
+    gst_output = ZERO
+    for row in trial_balance(session, as_of):
+        if row.account_type == "asset" and row.subtype in _CURRENT_ASSET_SUBTYPES:
+            assets += money(row.debit - row.credit)
+        elif row.account_type == "liability" and row.subtype in _CURRENT_LIABILITY_SUBTYPES:
+            liabilities += money(row.credit - row.debit)
+        if row.subtype == "gst_input":
+            gst_input += money(row.debit - row.credit)
+        elif row.subtype == "gst_output":
+            gst_output += money(row.credit - row.debit)
+    return money(assets), money(liabilities), money(gst_input), money(gst_output)
 
 
 def _ratio(part: Decimal, whole: Decimal) -> Decimal:
@@ -199,6 +222,10 @@ class MisSnapshot:
     signal_ok: bool
     signal_detail: str
     series: MonthlySeries
+    current_assets: Decimal
+    current_liabilities: Decimal
+    gst_input: Decimal
+    gst_output: Decimal
 
     @property
     def gm_pct(self) -> Decimal:
@@ -226,6 +253,38 @@ class MisSnapshot:
     @property
     def collection_efficiency(self) -> Decimal:
         return _ratio(self.fy.receipts, self.fy.sales)
+
+    @property
+    def current_ratio(self) -> Decimal:
+        return _ratio(self.current_assets, self.current_liabilities)
+
+    @property
+    def quick_ratio(self) -> Decimal:
+        return _ratio(money(self.cash + self.ar), self.current_liabilities)
+
+    @property
+    def monthly_net_cash(self) -> Decimal:
+        if not self.series.receipts:
+            return ZERO
+        return money(self.series.receipts[-1] - self.series.payments[-1])
+
+    @property
+    def cash_blocked_90(self) -> Decimal:
+        return money(self.ar_aging.get("90+", ZERO))
+
+    @property
+    def dso_policy_gap_ar(self) -> Decimal | None:
+        """AR implied by DSO days above the 120-day policy. None if DSO is missing or within policy."""
+        if self.dso is None or self.dso <= DSO_DAYS_MAX or self.dso <= 0:
+            return None
+        extra = Decimal(self.dso - DSO_DAYS_MAX) / Decimal(self.dso)
+        return money(self.ar * extra)
+
+    @property
+    def gst_net(self) -> Decimal:
+        if self.gst_input != ZERO or self.gst_output != ZERO:
+            return money(self.gst_output - self.gst_input)
+        return self.gst_payable
 
 
 def _period_pnl(session: Session, company: dict, start: date, end: date) -> PeriodPnl:
@@ -315,6 +374,7 @@ def mis_snapshot(
     metrics = scenario_metrics(session, as_of, cfg)
     ok, detail = signal_holds(metrics, cfg)
     series = monthly_activity(session, books_start, as_of)
+    current_assets, current_liabilities, gst_input, gst_output = _current_position(session, as_of)
     return MisSnapshot(
         as_of=as_of,
         scenario_id=sid,
@@ -348,4 +408,8 @@ def mis_snapshot(
         signal_ok=ok,
         signal_detail=detail,
         series=series,
+        current_assets=current_assets,
+        current_liabilities=current_liabilities,
+        gst_input=gst_input,
+        gst_output=gst_output,
     )

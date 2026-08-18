@@ -37,10 +37,77 @@ def render_dashboard(payload: dict[str, Any]) -> str:
         f"<tr><td>{_esc(row.get('label'))}</td><td class='num'>{_esc(row.get('value'))}</td></tr>"
         for row in aging
     )
+    fc = payload.get("cash_forecast") or {}
+    forecast_rows = "".join(
+        f"<tr><td>{_esc(row.get('label'))}</td>"
+        f"<td class='num'>{_esc(row.get('ar_in'))}</td>"
+        f"<td class='num'>{_esc(row.get('ap_out'))}</td>"
+        f"<td class='num'>{_esc(row.get('cash'))}</td></tr>"
+        for row in fc.get("horizons") or []
+    )
+    forecast_block = (
+        (
+            f'<section class="card"><h2>Cash forecast (open AR/AP)</h2>'
+            f'<p class="meta">{_esc(fc.get("method") or "")}</p>'
+            f"<table><thead><tr><th>Horizon</th><th class='num'>AR in</th>"
+            f"<th class='num'>AP out</th><th class='num'>Cash</th></tr></thead>"
+            f"<tbody>{forecast_rows}</tbody></table></section>"
+        )
+        if forecast_rows
+        else ""
+    )
     insight_html = "".join(
         f'<p class="insight tone-{_esc(item.get("tone") or "neutral")}">'
         f'<span class="surface">{_esc(item.get("surface"))}</span> {_esc(item.get("text"))}</p>'
         for item in insights
+        if item.get("surface") != "why"
+    )
+    why_html = "".join(
+        f'<p class="insight tone-{_esc(item.get("tone") or "neutral")}">'
+        f'<span class="surface">why</span> {_esc(item.get("text"))}</p>'
+        for item in insights
+        if item.get("surface") == "why"
+    )
+    flag_html = "".join(
+        f'<p class="insight tone-{_esc(item.get("tone") or "danger")}">'
+        f'<span class="surface">flag</span> {_esc(item.get("text"))}</p>'
+        for item in payload.get("red_flags") or []
+    )
+    bench_rows = "".join(
+        f"<tr><td>{_esc(row.get('name'))}</td>"
+        f"<td class='num'>{_esc(row.get('actual'))}</td>"
+        f"<td>{_esc(row.get('policy'))}</td>"
+        f"<td>{_esc(row.get('policy_status'))}</td>"
+        f"<td class='num'>{_esc(row.get('peer'))}</td>"
+        f"<td>{_esc(row.get('vs_peer'))}</td></tr>"
+        for row in payload.get("benchmarks") or []
+    )
+    bench_block = (
+        (
+            f'<section class="card"><h2>Benchmarks</h2>'
+            f'<p class="meta">{_esc(payload.get("benchmark_source") or "")}</p>'
+            f"<table><thead><tr><th>KPI</th><th class='num'>Actual</th><th>SSDV policy</th>"
+            f"<th>Policy</th><th class='num'>ABC baseline</th><th>vs ABC</th></tr></thead>"
+            f"<tbody>{bench_rows}</tbody></table></section>"
+        )
+        if bench_rows
+        else ""
+    )
+    whatif_rows = "".join(
+        f"<tr><td>{_esc(row.get('prompt'))}</td>"
+        f"<td>{_esc(row.get('result'))}</td>"
+        f"<td class='num'>{_esc(row.get('delta_inr'))}</td></tr>"
+        for row in payload.get("whatif") or []
+    )
+    whatif_block = (
+        (
+            f'<section class="card"><h2>What-if (recommend-only)</h2>'
+            f'<p class="meta">{_esc(payload.get("whatif_method") or "")}</p>'
+            f"<table><thead><tr><th>Scenario</th><th>Result</th><th class='num'>Delta INR</th>"
+            f"</tr></thead><tbody>{whatif_rows}</tbody></table></section>"
+        )
+        if whatif_rows
+        else ""
     )
     tile_html = "".join(
         f'<div class="tile tone-{_esc(t.get("tone") or "neutral")}">'
@@ -62,7 +129,7 @@ body {{ font-family: Segoe UI, sans-serif; margin: 24px; color: #1a1a1a; backgro
 h1 {{ font-size: 22px; margin: 0 0 4px; }}
 h2 {{ font-size: 15px; margin: 0 0 12px; }}
 .meta {{ color: #555; margin-bottom: 16px; }}
-.grid {{ display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }}
+.grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }}
 .tile {{ background: #fff; padding: 12px; border: 1px solid #ddd; }}
 .tile-val {{ font-size: 18px; font-weight: 600; }}
 .tile-lab {{ font-size: 12px; color: #555; margin-top: 4px; }}
@@ -89,6 +156,16 @@ td, th {{ border-bottom: 1px solid #eee; padding: 6px 0; }}
 <h2>OfficeMitra (on this screen)</h2>
 {insight_html or "<p>No insight lines.</p>"}
 </section>
+<section class="card">
+<h2>Why (from posted books)</h2>
+{why_html or "<p>No month-on-month driver isolated from these journals.</p>"}
+</section>
+<section class="card">
+<h2>Board red flags</h2>
+{flag_html or "<p>No Board red flags on DSO policy, cash, equity, or last-month profit.</p>"}
+</section>
+{bench_block}
+{whatif_block}
 {analyst_block}
 <div class="cols">
 <section class="card">
@@ -101,6 +178,7 @@ td, th {{ border-bottom: 1px solid #eee; padding: 6px 0; }}
 <table><thead><tr><th>Bucket</th><th class="num">INR</th></tr></thead><tbody>{aging_rows}</tbody></table>
 </section>
 </div>
+{forecast_block}
 </body>
 </html>
 """

@@ -42,6 +42,12 @@ def default_dashboard_path() -> Path:
     return data_dir / "mis.html"
 
 
+def default_board_pack_path() -> Path:
+    data_dir = repo_root() / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir / "board-pack.pdf"
+
+
 def default_company_path() -> Path:
     return repo_root() / "config" / "companies" / "abc_industrial.yaml"
 

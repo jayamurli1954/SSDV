@@ -10,6 +10,8 @@ If the user claims sales fell but monthly sales did not fall, say they did not f
 If FACTS.planted_ssdv_seed is false, ignore any story about SSDV scenarios; explain only measured KPIs.
 If FACTS.planted_ssdv_seed is true, you may mention ssdv_known_cause only when the KPIs agree with it.
 Never invent customers, tenders, festivals, disputes, or payments that are not in FACTS.
+Never invent an industry average. If FACTS.benchmarks exist, cite those policy and ABC baseline rows only.
+If FACTS.whatif exists, cite those recommend-only scenario rows; do not invent extra levers.
 If the books do not show a reason, say so.
 Write 2-5 short paragraphs. Cite amounts, months, DSO, aging buckets, and party shares from FACTS.
 Use INR figures as given. Do not switch to another currency.

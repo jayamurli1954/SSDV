@@ -7,7 +7,7 @@ from sqlalchemy import select
 from ssdv.accounting.opening import bootstrap_books
 from ssdv.accounting.posting import PostingError
 from ssdv.accounting.trial_balance import ledger_balance
-from ssdv.cash.aging import aging_totals, ar_aging
+from ssdv.cash.aging import aging_totals, ar_aging, bucket_for
 from ssdv.cash.generate import generate_settlements
 from ssdv.cash.posting import post_payment, post_receipt
 from ssdv.gl import AP_CONTROL, AR_CONTROL, BANK_HDFC
@@ -21,6 +21,14 @@ from ssdv.sales.posting import SalesLineInput, post_sale
 from ssdv.validate import VOLUME_GATES, run_gates
 
 SKIP_COUNTS = VOLUME_GATES
+
+
+def test_aging_buckets_split_120() -> None:
+    assert bucket_for(30) == "0-30"
+    assert bucket_for(90) == "61-90"
+    assert bucket_for(91) == "91-120"
+    assert bucket_for(120) == "91-120"
+    assert bucket_for(121) == "120+"
 
 
 def _stocked_product(session, min_qty: Decimal = Decimal("10")) -> Product:

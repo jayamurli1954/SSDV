@@ -58,6 +58,10 @@ def _days(value: int | None) -> str:
     return "n/a" if value is None else f"{value} d"
 
 
+def _times(ratio: Decimal) -> str:
+    return f"{ratio:.2f}x"
+
+
 def _tone_high(value: Decimal, limit: Decimal, *, invert: bool = False) -> Tone:
     breach = value >= limit
     if invert:
@@ -194,6 +198,42 @@ def ceo_pack(snap: MisSnapshot) -> MisPack:
             "receipts",
         ),
         Tile("growth", "Sales growth %", _growth(snap), "neutral", "sales"),
+        Tile(
+            "ccc",
+            "Cash conversion cycle",
+            _days(snap.ccc),
+            "danger" if (snap.dso is not None and snap.dso > DSO_DAYS_MAX) else "warning",
+            "ccc",
+        ),
+        Tile(
+            "current_ratio",
+            "Current ratio",
+            _times(snap.current_ratio),
+            "danger"
+            if snap.current_liabilities > ZERO and snap.current_ratio < money("1")
+            else "success"
+            if snap.current_liabilities > ZERO
+            else "neutral",
+            "ca_cl",
+        ),
+        Tile(
+            "quick_ratio",
+            "Quick ratio",
+            _times(snap.quick_ratio),
+            "danger"
+            if snap.current_liabilities > ZERO and snap.quick_ratio < money("1")
+            else "success"
+            if snap.current_liabilities > ZERO
+            else "neutral",
+            "quick",
+        ),
+        Tile(
+            "monthly_net_cash",
+            "Last-month net cash",
+            _inr(snap.monthly_net_cash),
+            "danger" if snap.monthly_net_cash < ZERO else "success",
+            "receipts",
+        ),
     )
     notes = (
         snap.golden,
@@ -204,10 +244,15 @@ def ceo_pack(snap: MisSnapshot) -> MisPack:
 
 
 def cfo_pack(snap: MisSnapshot) -> MisPack:
+    from ssdv.mis.forecast import cash_forecast
+
     dso_tone: Tone = "neutral"
     if snap.dso is not None:
         dso_tone = "danger" if snap.dso > DSO_DAYS_MAX else "success"
     ar_tone = _tone_high(snap.metrics.ar_to_sales, AR_TO_SALES_STRESS)
+    fc = cash_forecast(snap)
+    h30, h60, h90 = fc.horizons
+    gst_net_tone: Tone = "warning" if snap.gst_net > ZERO else "neutral"
     tiles = (
         Tile("dso", "DSO (AR / FY sales)", _days(snap.dso), dso_tone, "120000"),
         Tile(
@@ -222,7 +267,9 @@ def cfo_pack(snap: MisSnapshot) -> MisPack:
         Tile("ar", "Trade receivables", _inr(snap.ar), ar_tone, "120000"),
         Tile("ap", "Trade payables", _inr(snap.ap), "neutral", "210000"),
         Tile("inv", "Inventory (WAC)", _inr(snap.inventory), "neutral", "130000"),
-        Tile("gst", "GST payable", _inr(snap.gst_payable), "neutral", "222000"),
+        Tile("gst", "GST net liability", _inr(snap.gst_net), gst_net_tone, "gst"),
+        Tile("gst_input", "Input GST", _inr(snap.gst_input), "neutral", "gst_in"),
+        Tile("gst_output", "Output GST", _inr(snap.gst_output), "neutral", "gst_out"),
         Tile(
             "od",
             "OD utilisation",
@@ -231,13 +278,35 @@ def cfo_pack(snap: MisSnapshot) -> MisPack:
             "113000",
         ),
         Tile("salary", "Salary payable", _inr(snap.salary_payable), "warning", "232000"),
+        Tile(
+            "cash_30",
+            "Cash in 30 days",
+            _inr(h30.cash),
+            "danger" if h30.cash < ZERO else "success",
+            "forecast",
+        ),
+        Tile(
+            "cash_60",
+            "Cash in 60 days",
+            _inr(h60.cash),
+            "danger" if h60.cash < ZERO else "success",
+            "forecast",
+        ),
+        Tile(
+            "cash_90",
+            "Cash in 90 days",
+            _inr(h90.cash),
+            "danger" if h90.cash < ZERO else "success",
+            "forecast",
+        ),
     )
     aging = snap.ar_aging
     notes = (
         snap.golden,
         (
             f"AR aging  0-30 {_inr(aging['0-30'])}  31-60 {_inr(aging['31-60'])}  "
-            f"61-90 {_inr(aging['61-90'])}  90+ {_inr(aging['90+'])}"
+            f"61-90 {_inr(aging['61-90'])}  91-120 {_inr(aging['91-120'])}  "
+            f"120+ {_inr(aging['120+'])}  90+ {_inr(aging['90+'])}"
         ),
         (
             f"Banks HDFC {_inr(snap.hdfc)}  ICICI {_inr(snap.icici)}  "
@@ -245,11 +314,18 @@ def cfo_pack(snap: MisSnapshot) -> MisPack:
         ),
         f"Opex (ex-COGS) {_inr(snap.fy.opex)}  loan {_inr(snap.term_loan)}",
         f"Equation delta {_inr(snap.equation.delta)}  {'holds' if snap.equation.holds else 'BROKEN'}",
+        fc.method,
+        (
+            f"Cash forecast  30 {_inr(h30.cash)}  60 {_inr(h60.cash)}  "
+            f"90 {_inr(h90.cash)}  blocked AR 90+ {_inr(fc.blocked_ar)}"
+        ),
     )
     return MisPack("cfo", "CFO pack", tiles, scorecard(snap), notes)
 
 
 def board_pack(snap: MisSnapshot) -> MisPack:
+    from ssdv.officemitra.insights import build_red_flags
+
     rows = scorecard(snap)
     tiles = (
         Tile("assets", "Assets", _inr(snap.equation.assets), "neutral", "tb"),
@@ -277,6 +353,7 @@ def board_pack(snap: MisSnapshot) -> MisPack:
         ),
         Tile("ccc", "Cash conversion cycle", _days(snap.ccc), "warning", "ccc"),
     )
+    flags = tuple(item.text for item in build_red_flags(snap))
     notes = (
         snap.golden,
         (
@@ -285,6 +362,7 @@ def board_pack(snap: MisSnapshot) -> MisPack:
             else "Equity is non-negative after close."
         ),
         f"Signal {'OK' if snap.signal_ok else 'FAIL'} -- {snap.signal_detail}",
+        *(flags or ("No Board red flags on DSO policy, cash, equity, or last-month profit.",)),
     )
     return MisPack("board", "Board pack", tiles, rows, notes)
 

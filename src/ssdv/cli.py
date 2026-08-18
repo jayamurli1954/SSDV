@@ -33,8 +33,9 @@ from ssdv.models import (
     SalesInvoice,
     Vendor,
 )
-from ssdv.officemitra import render_dashboard
+from ssdv.officemitra import render_board_pdf, render_dashboard
 from ssdv.paths import (
+    default_board_pack_path,
     default_dashboard_path,
     default_db_path,
     connect_db_path,
@@ -219,11 +220,11 @@ def cmd_aging(args: argparse.Namespace) -> int:
         ar = aging_totals(ar_rows)
         ap = aging_totals(ap_rows)
         print(f"AR aging as of {args.as_of.isoformat()}  ({len(ar_rows)} open items)")
-        for name in ("0-30", "31-60", "61-90", "90+", "total"):
-            print(f"  {name:<6} {ar[name]:>16,.2f}")
+        for name in ("0-30", "31-60", "61-90", "91-120", "120+", "90+", "total"):
+            print(f"  {name:<8} {ar[name]:>16,.2f}")
         print(f"AP aging as of {args.as_of.isoformat()}  ({len(ap_rows)} open items)")
-        for name in ("0-30", "31-60", "61-90", "90+", "total"):
-            print(f"  {name:<6} {ap[name]:>16,.2f}")
+        for name in ("0-30", "31-60", "61-90", "91-120", "120+", "90+", "total"):
+            print(f"  {name:<8} {ap[name]:>16,.2f}")
     return 0
 
 
@@ -277,6 +278,11 @@ def cmd_mis(args: argparse.Namespace) -> int:
     with session_scope(engine) as session:
         cfg = _company(args, session)
         snap = mis_snapshot(session, args.as_of, company=cfg)
+        peer = None
+        if snap.scenario_id != "baseline":
+            from ssdv.mis.benchmarks import load_baseline_peer
+
+            peer = load_baseline_peer(snap.as_of, exclude=_db(args))
         analyst = None
         analyst_error = None
         if args.ask:
@@ -292,7 +298,7 @@ def cmd_mis(args: argparse.Namespace) -> int:
             except AskError as exc:
                 analyst_error = str(exc)
         if args.json:
-            payload = snapshot_payload(snap, pack)
+            payload = snapshot_payload(snap, pack, peer=peer)
             if analyst:
                 payload["analyst"] = analyst
             if analyst_error:
@@ -300,7 +306,7 @@ def cmd_mis(args: argparse.Namespace) -> int:
             print(json.dumps(payload, indent=2))
         else:
             print(f"Database: {_db(args)}")
-            print(render_mis(snap, pack))
+            print(render_mis(snap, pack, peer=peer))
             if analyst:
                 print()
                 print("OfficeMitra (Ollama)")
@@ -319,7 +325,12 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
     with session_scope(engine) as session:
         cfg = _company(args, session)
         snap = mis_snapshot(session, args.as_of, company=cfg)
-        payload = snapshot_payload(snap, "ceo")
+        peer = None
+        if snap.scenario_id != "baseline":
+            from ssdv.mis.benchmarks import load_baseline_peer
+
+            peer = load_baseline_peer(snap.as_of, exclude=_db(args))
+        payload = snapshot_payload(snap, "all" if args.pdf else "ceo", peer=peer)
         if args.ask:
             try:
                 payload["analyst"] = ask_books(
@@ -332,10 +343,20 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
                 )
             except AskError as exc:
                 payload["analyst_error"] = str(exc)
-        out.write_text(render_dashboard(payload), encoding="utf-8")
-        print(f"Database: {_db(args)}")
-        print(f"Wrote:    {out}")
-        print("Open the HTML file in a browser. OfficeMitra lines sit on the CEO screen.")
+        if args.pdf:
+            out = args.out
+            if out.suffix.lower() != ".pdf":
+                out = default_board_pack_path() if out == default_dashboard_path() else out.with_suffix(".pdf")
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(render_board_pdf(payload))
+            print(f"Database: {_db(args)}")
+            print(f"Wrote:    {out}")
+            print("Board pack PDF from posted journals. PPT is not in this pack.")
+        else:
+            out.write_text(render_dashboard(payload), encoding="utf-8")
+            print(f"Database: {_db(args)}")
+            print(f"Wrote:    {out}")
+            print("Open the HTML file in a browser. OfficeMitra lines sit on the CEO screen.")
         return 0 if snap.equation.holds else 1
 
 
@@ -398,6 +419,9 @@ def cmd_ask(args: argparse.Namespace) -> int:
     model = args.model or default_model()
     with session_scope(engine) as session:
         cfg = _company(args, session)
+        print(f"Database: {_db(args)}")
+        print(f"Model:    {model}")
+        print("Calling local Ollama. First answer can take a few minutes...")
         try:
             answer = ask_books(
                 session,
@@ -423,8 +447,6 @@ def cmd_ask(args: argparse.Namespace) -> int:
                 )
             )
         else:
-            print(f"Database: {_db(args)}")
-            print(f"Model:    {model}")
             print(f"Question: {question}")
             print()
             print(answer)
@@ -580,7 +602,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     dash = sub.add_parser(
         "dashboard",
-        help="Write a one-page CEO HTML screen from MIS JSON (OfficeMitra in-line)",
+        help="Write a CEO HTML screen, or a Board pack PDF (--pdf)",
     )
     dash.add_argument("--as-of", type=_parse_date, default=date(2026, 3, 31))
     dash.add_argument("--scenario", choices=list(scenario_ids()), default=None)
@@ -588,8 +610,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--out",
         type=Path,
         default=default_dashboard_path(),
-        help="HTML path (default: data/mis.html)",
+        help="HTML path (default: data/mis.html). With --pdf, default is data/board-pack.pdf",
     )
+    dash.add_argument("--pdf", action="store_true", help="Write a Board pack PDF instead of CEO HTML")
     dash.add_argument("--ask", action="store_true", help="Add an Ollama paragraph if Ollama is up")
     dash.add_argument("--model", default=None)
     dash.add_argument("--host", default=None)

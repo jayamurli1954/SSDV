@@ -14,9 +14,10 @@ from ssdv.connectors import ConnectorError, ConnectorNotReady, list_connectors, 
 from ssdv.db import create_schema, make_engine, session_scope
 from ssdv.ingest import IngestError
 from ssdv.mis import mis_snapshot, snapshot_payload
-from ssdv.officemitra import render_dashboard
 from ssdv.officemitra.charts import (
     aging_points,
+    cash_forecast_points,
+    gst_points,
     kpi_points,
     monthly_profit_points,
     monthly_series,
@@ -24,6 +25,8 @@ from ssdv.officemitra.charts import (
     pnl_mix_points,
     scorecard_points,
 )
+from ssdv.officemitra.boardpack import render_board_pdf
+from ssdv.officemitra.dashboard import render_dashboard
 from ssdv.paths import connect_db_path, default_db_path, repo_root
 
 st.set_page_config(page_title="OfficeMitra", layout="wide", initial_sidebar_state="expanded")
@@ -199,7 +202,12 @@ def _payload(db_path: str, as_of: str) -> dict:
     create_schema(engine)
     with session_scope(engine) as session:
         snap = mis_snapshot(session, date.fromisoformat(as_of))
-        return snapshot_payload(snap, "all")
+        peer = None
+        if snap.scenario_id != "baseline":
+            from ssdv.mis.benchmarks import load_baseline_peer
+
+            peer = load_baseline_peer(snap.as_of, exclude=Path(db_path))
+        return snapshot_payload(snap, "all", peer=peer)
 
 
 def _note(tone: str, text: str) -> None:
@@ -217,6 +225,66 @@ def _metrics(tiles: list[dict]) -> None:
             f'<div class="om-tile-val">{value}</div></div>'
         )
     st.markdown(f'<div class="om-tiles">{"".join(cards)}</div>', unsafe_allow_html=True)
+
+
+def _render_benchmarks(payload: dict) -> None:
+    st.markdown("##### Benchmarks")
+    source = str(payload.get("benchmark_source") or "")
+    if source:
+        st.caption(source)
+    rows = payload.get("benchmarks") or []
+    if not rows:
+        st.write("No benchmark rows.")
+        return
+    st.dataframe(
+        [
+            {
+                "KPI": row.get("name"),
+                "Actual": row.get("actual"),
+                "SSDV policy": row.get("policy"),
+                "Policy": row.get("policy_status"),
+                "ABC baseline": row.get("peer"),
+                "vs ABC": row.get("vs_peer"),
+            }
+            for row in rows
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+def _render_whatif(payload: dict) -> None:
+    st.markdown("##### What-if (recommend-only)")
+    method = str(payload.get("whatif_method") or "")
+    if method:
+        st.caption(method)
+    rows = list(payload.get("whatif") or [])
+    if not rows:
+        st.write("No what-if scenarios.")
+        return
+    by_prompt = {str(row.get("prompt") or ""): row for row in rows}
+    prompts = list(payload.get("whatif_prompts") or [])
+    chosen = None
+    if prompts:
+        cols = st.columns(min(2, len(prompts)))
+        for i, prompt in enumerate(prompts):
+            if cols[i % len(cols)].button(prompt, key=f"whatif_chip_{i}"):
+                chosen = prompt
+    if chosen and chosen in by_prompt:
+        item = by_prompt[chosen]
+        _note(str(item.get("tone") or "neutral"), str(item.get("result") or ""))
+    st.dataframe(
+        [
+            {
+                "Scenario": row.get("prompt"),
+                "Result": row.get("result"),
+                "Delta INR": row.get("delta_inr"),
+            }
+            for row in rows
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
 
 
 def _chart_title(title: str) -> None:
@@ -454,9 +522,13 @@ def _render_connect() -> None:
 def _render_ceo(payload: dict, db_path: str, as_of: date) -> None:
     st.markdown('<div class="om-kicker">OfficeMitra notes</div>', unsafe_allow_html=True)
     for item in payload.get("insights") or []:
+        if item.get("surface") == "why":
+            continue
         _note(str(item.get("tone") or "neutral"), str(item.get("text") or ""))
     st.markdown("##### CEO pack")
     _metrics(pack_tiles(payload, "ceo"))
+    _render_benchmarks(payload)
+    _render_whatif(payload)
     left, right = st.columns(2, gap="large")
     with left:
         _multi_line(payload, [("sales", "Taxable sales"), ("cogs", "COGS")], "Sales vs COGS")
@@ -469,15 +541,30 @@ def _render_ceo(payload: dict, db_path: str, as_of: date) -> None:
         _donut(pnl_mix_points(payload), "P&L mix (COGS vs gross margin)")
     labels, profit = monthly_profit_points(payload)
     _named_bars(labels, profit, "Monthly profit (sales - COGS - operating expenses)")
+    why_items = [item for item in payload.get("insights") or [] if item.get("surface") == "why"]
+    if why_items:
+        st.markdown("##### Why (from posted books)")
+        for item in why_items:
+            _note(str(item.get("tone") or "neutral"), str(item.get("text") or ""))
+    prompts = list(payload.get("why_prompts") or [])
+    st.markdown("##### Ask why")
+    chosen = None
+    if prompts:
+        cols = st.columns(min(3, len(prompts)))
+        for i, prompt in enumerate(prompts):
+            if cols[i % len(cols)].button(prompt, key=f"why_chip_{i}"):
+                chosen = prompt
     question = st.text_input(
         "Ask a why-question",
-        placeholder="Ask why sales fell, why expenses rose, why 90+ AR is up...",
+        placeholder="Or type a question about these books...",
+        key="why_q",
     )
-    if question:
+    ask = chosen or (question or "").strip()
+    if ask:
         engine = make_engine(Path(db_path))
         with session_scope(engine) as session:
             try:
-                answer = ask_books(session, question, as_of)
+                answer = ask_books(session, ask, as_of)
             except AskError as exc:
                 _note("warning", str(exc))
             else:
@@ -487,6 +574,31 @@ def _render_ceo(payload: dict, db_path: str, as_of: date) -> None:
 def _render_cfo(payload: dict) -> None:
     st.markdown('<div class="om-kicker">Cash and aging</div>', unsafe_allow_html=True)
     _metrics(pack_tiles(payload, "cfo"))
+    st.markdown("##### Cash forecast (open AR/AP, no sales plan)")
+    fc = payload.get("cash_forecast") or {}
+    if fc.get("method"):
+        st.caption(str(fc["method"]))
+    _bars(cash_forecast_points(payload), "Cash today vs 30 / 60 / 90 days")
+    horizons = list(fc.get("horizons") or [])
+    if horizons:
+        st.dataframe(
+            [
+                {
+                    "Horizon": row.get("label"),
+                    "AR in": row.get("ar_in"),
+                    "AP out": row.get("ap_out"),
+                    "GST out": row.get("gst_out"),
+                    "Salary out": row.get("salary_out"),
+                    "Net": row.get("net"),
+                    "Cash": row.get("cash"),
+                }
+                for row in horizons
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+    if fc.get("blocked_ar") not in (None, "", "0.00"):
+        _note("warning", f"Unscheduled AR {_inr_text(fc.get('blocked_ar'))} is not in the 30/60/90 timing.")
     left, right = st.columns(2, gap="large")
     with left:
         _donut(aging_points(payload, "ar_aging"), "AR aging")
@@ -506,6 +618,9 @@ def _render_cfo(payload: dict) -> None:
             area=True,
         )
     with right:
+        _bars(gst_points(payload), "GST position")
+    left, right = st.columns(2, gap="large")
+    with left:
         _bars(
             kpi_points(
                 payload,
@@ -518,13 +633,28 @@ def _render_cfo(payload: dict) -> None:
             ),
             "Cash cycle (days)",
         )
+    with right:
+        _bars(
+            kpi_points(
+                payload,
+                [("hdfc", "HDFC"), ("icici", "ICICI"), ("od", "OD")],
+            ),
+            "Bank position",
+        )
     for item in payload.get("insights") or []:
-        if item.get("surface") == "aging":
+        if item.get("surface") in {"aging", "cfo"}:
             _note(str(item.get("tone") or "neutral"), str(item.get("text") or ""))
 
 
 def _render_board(payload: dict) -> None:
     st.markdown('<div class="om-kicker">Board pack</div>', unsafe_allow_html=True)
+    flags = payload.get("red_flags") or []
+    if flags:
+        st.markdown("##### Red flags")
+        for item in flags:
+            _note(str(item.get("tone") or "danger"), str(item.get("text") or ""))
+    else:
+        _note("success", "No Board red flags on DSO policy, cash, equity, or last-month profit.")
     _metrics(pack_tiles(payload, "board"))
     left, right = st.columns(2, gap="large")
     with left:
@@ -563,6 +693,7 @@ def _render_board(payload: dict) -> None:
     if rows:
         st.write("")
         st.dataframe(rows, use_container_width=True, hide_index=True)
+    _render_benchmarks(payload)
 
 
 def _render_charts(payload: dict) -> None:
@@ -616,7 +747,14 @@ def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> Non
         data=render_dashboard(payload).encode("utf-8"),
         file_name=f"officemitra-{payload.get('as_of')}.html",
         mime="text/html",
-        help="Open this file in Edge, then Ctrl+P and Save as PDF. That is a true full page.",
+        help="Open this file in Edge, then Ctrl+P and Save as PDF if you want a full-page print.",
+    )
+    st.download_button(
+        "Download Board pack (PDF)",
+        data=render_board_pdf(payload),
+        file_name=f"officemitra-board-{payload.get('as_of')}.pdf",
+        mime="application/pdf",
+        help="Automated Board pack from posted journals. Recommend-only. PPT is not in this pack.",
     )
     if screen == "CEO":
         _render_ceo(payload, db_path, as_of)
@@ -661,7 +799,7 @@ def main() -> None:
             st.write(
                 "Edge cannot see below the fold on this app until you download the HTML report "
                 "or use: F12 → Ctrl+Shift+P → Capture full size screenshot after a refresh. "
-                "Best: Download full report (HTML) → open the file → Ctrl+P → Save as PDF."
+                "Best: Download Board pack (PDF), or Download full report (HTML) then Ctrl+P in Edge."
             )
 
     _unlock_full_page()

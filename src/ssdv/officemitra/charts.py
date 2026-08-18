@@ -59,3 +59,34 @@ def monthly_profit_points(payload: dict[str, Any]) -> tuple[list[str], list[floa
     n = min(len(labels), len(sales), len(cogs), len(opex))
     profit = [sales[i] - cogs[i] - opex[i] for i in range(n)]
     return labels[:n], profit
+
+
+def cash_forecast_points(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    fc = payload.get("cash_forecast") or {}
+    rows = [{"label": "Today", "value": to_float(fc.get("opening_cash"))}]
+    for item in fc.get("horizons") or []:
+        rows.append({"label": str(item.get("label") or ""), "value": to_float(item.get("cash"))})
+    return rows
+
+
+def gst_points(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    kpis = payload.get("kpis") or {}
+    return [
+        {"label": "Input GST", "value": to_float(kpis.get("gst_input"))},
+        {"label": "Output GST", "value": to_float(kpis.get("gst_output"))},
+        {"label": "Net liability", "value": to_float(kpis.get("gst_net"))},
+    ]
+
+
+__all__ = [
+    "aging_points",
+    "cash_forecast_points",
+    "gst_points",
+    "kpi_points",
+    "monthly_profit_points",
+    "monthly_series",
+    "pack_tiles",
+    "pnl_mix_points",
+    "scorecard_points",
+    "to_float",
+]

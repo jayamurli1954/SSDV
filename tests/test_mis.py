@@ -102,7 +102,19 @@ def test_mis_json_and_packs(session) -> None:
     assert payload["charts"]["pnl_mix"]["type"] == "pie"
     assert "working_capital" in payload["kpis"]
     assert "collection_efficiency" in payload["kpis"]
+    assert "current_ratio" in payload["kpis"]
+    assert "quick_ratio" in payload["kpis"]
+    assert "monthly_net_cash" in payload["kpis"]
     assert payload["insights"]
+    assert "red_flags" in payload
+    assert payload["why_prompts"]
+    assert "cash_forecast" in payload
+    assert payload["cash_forecast"]["horizons"][0]["days"] == 30
+    assert "gst_net" in payload["kpis"]
+    assert payload["benchmarks"]
+    assert "Not a surveyed industry average" in payload["benchmark_source"]
+    assert payload["whatif"]
+    assert len(payload["whatif"]) == 4
     ceo = next(p for p in payload["packs"] if p["id"] == "ceo")
     assert {t["id"] for t in ceo["tiles"]} >= {
         "sales",
@@ -115,6 +127,10 @@ def test_mis_json_and_packs(session) -> None:
         "monthly_profit",
         "collection_efficiency",
         "growth",
+        "ccc",
+        "current_ratio",
+        "quick_ratio",
+        "monthly_net_cash",
     }
     text = render_mis(snap, "ceo")
     assert "OfficeMitra" in text
@@ -122,6 +138,11 @@ def test_mis_json_and_packs(session) -> None:
     text = render_mis(snap, "ceo")
     assert "CEO pack" in text
     assert snap.company_name in text
+    board_text = render_mis(snap, "board")
+    assert "Benchmarks" in board_text
+    assert "SSDV policy" in board_text
+    cfo = next(p for p in payload["packs"] if p["id"] == "cfo")
+    assert {t["id"] for t in cfo["tiles"]} >= {"cash_30", "cash_60", "cash_90", "gst_input", "gst_output"}
 
 
 def test_concentration_scorecard_breach(session) -> None:

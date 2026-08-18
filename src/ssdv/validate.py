@@ -342,7 +342,8 @@ def run_gates(session: Session, as_of: date, company: dict | None = None) -> lis
             "ar_aging",
             ar_age["total"] == ar_gl,
             f"aging {ar_age['total']} gl {ar_gl} "
-            f"0-30 {ar_age['0-30']} 31-60 {ar_age['31-60']} 61-90 {ar_age['61-90']} 90+ {ar_age['90+']}",
+            f"0-30 {ar_age['0-30']} 31-60 {ar_age['31-60']} 61-90 {ar_age['61-90']} "
+            f"91-120 {ar_age['91-120']} 120+ {ar_age['120+']} 90+ {ar_age['90+']}",
         )
     )
     gates.append(
@@ -350,7 +351,8 @@ def run_gates(session: Session, as_of: date, company: dict | None = None) -> lis
             "ap_aging",
             ap_age["total"] == ap_gl,
             f"aging {ap_age['total']} gl {ap_gl} "
-            f"0-30 {ap_age['0-30']} 31-60 {ap_age['31-60']} 61-90 {ap_age['61-90']} 90+ {ap_age['90+']}",
+            f"0-30 {ap_age['0-30']} 31-60 {ap_age['31-60']} 61-90 {ap_age['61-90']} "
+            f"91-120 {ap_age['91-120']} 120+ {ap_age['120+']} 90+ {ap_age['90+']}",
         )
     )
 

@@ -32,8 +32,15 @@ def _json_ready(value: Any) -> Any:
     return value
 
 
-def snapshot_payload(snap: MisSnapshot, pack_id: str) -> dict[str, Any]:
-    from ssdv.officemitra.insights import build_insights
+def snapshot_payload(
+    snap: MisSnapshot,
+    pack_id: str,
+    *,
+    peer: MisSnapshot | None = None,
+) -> dict[str, Any]:
+    from ssdv.mis.benchmarks import BENCHMARK_SOURCE, build_benchmarks
+    from ssdv.mis.whatif import WHATIF_METHOD, WHATIF_PROMPTS, build_whatif
+    from ssdv.officemitra.insights import WHY_PROMPTS, build_insights, build_red_flags
 
     packs = ["ceo", "cfo", "board"] if pack_id == "all" else [pack_id]
     built = [build_pack(snap, pid) for pid in packs]
@@ -88,6 +95,16 @@ def snapshot_payload(snap: MisSnapshot, pack_id: str) -> dict[str, Any]:
             "collection_efficiency": _json_ready(snap.collection_efficiency),
             "ytd_profit": _json_ready(snap.ytd_profit),
             "monthly_profit": _json_ready(snap.monthly_profit),
+            "current_assets": _json_ready(snap.current_assets),
+            "current_liabilities": _json_ready(snap.current_liabilities),
+            "current_ratio": _json_ready(snap.current_ratio),
+            "quick_ratio": _json_ready(snap.quick_ratio),
+            "monthly_net_cash": _json_ready(snap.monthly_net_cash),
+            "cash_blocked_90": _json_ready(snap.cash_blocked_90),
+            "dso_policy_gap_ar": _json_ready(snap.dso_policy_gap_ar),
+            "gst_input": _json_ready(snap.gst_input),
+            "gst_output": _json_ready(snap.gst_output),
+            "gst_net": _json_ready(snap.gst_net),
             "equation_holds": snap.equation.holds,
             "signal_ok": snap.signal_ok,
             "signal_detail": snap.signal_detail,
@@ -96,6 +113,7 @@ def snapshot_payload(snap: MisSnapshot, pack_id: str) -> dict[str, Any]:
         "prior": _json_ready(snap.prior),
         "series": _json_ready(snap.series),
         "charts": _charts_payload(snap),
+        "cash_forecast": _forecast_payload(snap),
         "insights": [
             {
                 "id": item.id,
@@ -104,6 +122,43 @@ def snapshot_payload(snap: MisSnapshot, pack_id: str) -> dict[str, Any]:
                 "tone": item.tone,
             }
             for item in build_insights(snap)
+        ],
+        "red_flags": [
+            {
+                "id": item.id,
+                "surface": item.surface,
+                "text": item.text,
+                "tone": item.tone,
+            }
+            for item in build_red_flags(snap)
+        ],
+        "why_prompts": list(WHY_PROMPTS),
+        "whatif_prompts": list(WHATIF_PROMPTS),
+        "whatif_method": WHATIF_METHOD,
+        "whatif": [
+            {
+                "id": row.id,
+                "prompt": row.prompt,
+                "result": row.result,
+                "delta_inr": _json_ready(row.delta_inr),
+                "tone": row.tone,
+                "detail": row.detail,
+            }
+            for row in build_whatif(snap)
+        ],
+        "benchmark_source": BENCHMARK_SOURCE,
+        "benchmarks": [
+            {
+                "id": row.id,
+                "name": row.name,
+                "actual": row.actual,
+                "policy": row.policy,
+                "peer": row.peer,
+                "policy_status": row.policy_status,
+                "vs_peer": row.vs_peer,
+                "tone": row.tone,
+            }
+            for row in build_benchmarks(snap, peer)
         ],
         "scorecard": [
             {
@@ -125,10 +180,42 @@ def _named_series(series_id: str, name: str, data: Any) -> dict[str, Any]:
 
 
 def _aging_chart(kind: str, aging: dict[str, Any]) -> dict[str, Any]:
+    from ssdv.cash.aging import BUCKETS
+
     return {
         "type": "doughnut",
         "id": kind,
-        "data": [{"label": label, "value": _json_ready(value)} for label, value in aging.items()],
+        "data": [
+            {"label": label, "value": _json_ready(aging.get(label))}
+            for label in BUCKETS
+        ],
+    }
+
+
+def _forecast_payload(snap: MisSnapshot) -> dict[str, Any]:
+    from ssdv.mis.forecast import cash_forecast
+
+    fc = cash_forecast(snap)
+    return {
+        "opening_cash": _json_ready(fc.opening_cash),
+        "gst_input": _json_ready(fc.gst_input),
+        "gst_output": _json_ready(fc.gst_output),
+        "gst_net": _json_ready(fc.gst_net),
+        "blocked_ar": _json_ready(fc.blocked_ar),
+        "method": fc.method,
+        "horizons": [
+            {
+                "days": row.days,
+                "label": row.label,
+                "ar_in": _json_ready(row.ar_in),
+                "ap_out": _json_ready(row.ap_out),
+                "gst_out": _json_ready(row.gst_out),
+                "salary_out": _json_ready(row.salary_out),
+                "net": _json_ready(row.net),
+                "cash": _json_ready(row.cash),
+            }
+            for row in fc.horizons
+        ],
     }
 
 
@@ -189,11 +276,16 @@ def _pack_payload(pack: MisPack) -> dict[str, Any]:
     }
 
 
-def dumps_snapshot(snap: MisSnapshot, pack_id: str) -> str:
-    return json.dumps(snapshot_payload(snap, pack_id), indent=2)
+def dumps_snapshot(snap: MisSnapshot, pack_id: str, *, peer: MisSnapshot | None = None) -> str:
+    return json.dumps(snapshot_payload(snap, pack_id, peer=peer), indent=2)
 
 
-def render_pack(snap: MisSnapshot, pack: MisPack) -> list[str]:
+def render_pack(
+    snap: MisSnapshot,
+    pack: MisPack,
+    *,
+    peer: MisSnapshot | None = None,
+) -> list[str]:
     lines = [
         f"{snap.company_name}",
         f"{pack.title}  {snap.scenario_id}  as of {snap.as_of.isoformat()}  {snap.fy.fy_code} YTD",
@@ -215,14 +307,24 @@ def render_pack(snap: MisSnapshot, pack: MisPack) -> list[str]:
         lines.append(f"  {'Policy':<28} {'Actual':>16}  {'Status':<8}  Rule")
         for row in pack.scorecard:
             lines.append(f"  {row.name:<28} {row.actual:>16}  {row.status:<8}  {row.policy}")
+    if pack.id == "board":
+        from ssdv.mis.benchmarks import BENCHMARK_SOURCE, build_benchmarks
+
+        lines.append("")
+        lines.append("  Benchmarks")
+        lines.append(f"  {BENCHMARK_SOURCE}")
+        for row in build_benchmarks(snap, peer):
+            lines.append(
+                f"  {row.name:<28} {row.actual:>12}  {row.policy_status:<8}  {row.vs_peer}"
+            )
     lines.append("")
     lines.extend(pack.notes)
     return lines
 
 
-def render_mis(snap: MisSnapshot, pack_id: str) -> str:
+def render_mis(snap: MisSnapshot, pack_id: str, *, peer: MisSnapshot | None = None) -> str:
     packs = ["ceo", "cfo", "board"] if pack_id == "all" else [pack_id]
-    blocks = [render_pack(snap, build_pack(snap, pid)) for pid in packs]
+    blocks = [render_pack(snap, build_pack(snap, pid), peer=peer) for pid in packs]
     sep = ["", "-" * 72, ""]
     out: list[str] = []
     for i, block in enumerate(blocks):

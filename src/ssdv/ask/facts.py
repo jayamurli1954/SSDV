@@ -43,6 +43,17 @@ def compact_facts(payload: dict[str, Any], *, months: int = 12) -> dict[str, Any
         "fy": payload.get("fy"),
         "prior": payload.get("prior"),
         "scorecard": payload.get("scorecard") or [],
+        "red_flags": payload.get("red_flags") or [],
+        "why_notes": [
+            item
+            for item in payload.get("insights") or []
+            if item.get("surface") == "why"
+        ],
+        "cash_forecast": payload.get("cash_forecast") or {},
+        "benchmarks": payload.get("benchmarks") or [],
+        "benchmark_source": payload.get("benchmark_source") or "",
+        "whatif": payload.get("whatif") or [],
+        "whatif_method": payload.get("whatif_method") or "",
         "monthly": monthly,
         "ar_aging": (payload.get("charts") or {}).get("ar_aging"),
         "ap_aging": (payload.get("charts") or {}).get("ap_aging"),
@@ -55,4 +66,9 @@ def compact_facts(payload: dict[str, Any], *, months: int = 12) -> dict[str, Any
 
 
 def facts_from_snapshot(snap: MisSnapshot, *, months: int = 12) -> dict[str, Any]:
-    return compact_facts(snapshot_payload(snap, "all"), months=months)
+    peer = None
+    if snap.scenario_id != "baseline":
+        from ssdv.mis.benchmarks import load_baseline_peer
+
+        peer = load_baseline_peer(snap.as_of)
+    return compact_facts(snapshot_payload(snap, "all", peer=peer), months=months)

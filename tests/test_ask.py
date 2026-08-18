@@ -47,6 +47,11 @@ def test_compact_facts_tails_months_and_hides_golden_for_imported() -> None:
     assert len(facts["monthly"]["sales"]) == 12
     assert facts["monthly"]["sales"][0] == "2"
     assert facts["ar_aging"]["data"][0]["label"] == "90+"
+    assert facts["red_flags"] == []
+    assert facts["why_notes"] == []
+    assert facts["cash_forecast"] == {}
+    assert facts["benchmarks"] == []
+    assert facts["whatif"] == []
 
 
 def test_compact_facts_keeps_ssdv_cause_on_seed() -> None:
@@ -69,6 +74,8 @@ def test_user_prompt_includes_question_and_facts() -> None:
     assert "why is 90+ up" in text
     assert "593" in text
     assert "Answer ONLY from the FACTS JSON" in SYSTEM
+    assert "Never invent an industry average" in SYSTEM
+    assert "FACTS.whatif" in SYSTEM
 
 
 def test_chat_reads_ollama_message(monkeypatch: pytest.MonkeyPatch) -> None:
