@@ -55,8 +55,12 @@ def generate_settlements(
     payment_target: int | None = None,
 ) -> tuple[int, int]:
     cfg = company or load_company()
-    receipt_target = int(receipt_target if receipt_target is not None else cfg["volumes"]["receipts"])
-    payment_target = int(payment_target if payment_target is not None else cfg["volumes"]["payments"])
+    receipt_target = int(
+        receipt_target if receipt_target is not None else cfg["volumes"]["receipts"]
+    )
+    payment_target = int(
+        payment_target if payment_target is not None else cfg["volumes"]["payments"]
+    )
     existing_r = int(session.scalar(select(func.count()).select_from(Receipt)) or 0)
     existing_p = int(session.scalar(select(func.count()).select_from(Payment)) or 0)
     if existing_r > 0 or existing_p > 0:
@@ -74,8 +78,16 @@ def generate_settlements(
 
     customers = {c.code: c for c in session.scalars(select(Customer)).all()}
     vendors = {v.code: v for v in session.scalars(select(Vendor)).all()}
-    invoices = list(session.scalars(select(SalesInvoice).order_by(SalesInvoice.invoice_date, SalesInvoice.id)).all())
-    bills = list(session.scalars(select(PurchaseBill).order_by(PurchaseBill.bill_date, PurchaseBill.id)).all())
+    invoices = list(
+        session.scalars(
+            select(SalesInvoice).order_by(SalesInvoice.invoice_date, SalesInvoice.id)
+        ).all()
+    )
+    bills = list(
+        session.scalars(
+            select(PurchaseBill).order_by(PurchaseBill.bill_date, PurchaseBill.id)
+        ).all()
+    )
 
     planned: list[tuple[date, int, Literal["receipt", "payment"], dict[str, Any]]] = []
     seq = 0

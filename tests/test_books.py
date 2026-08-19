@@ -16,7 +16,6 @@ from ssdv.gl import (
     BANK_CHARGES,
     BANK_HDFC,
     DEPRECIATION,
-    EXPENSES_PAYABLE,
     GST_PAYABLE,
     INPUT_CGST,
     INTEREST_LOAN,
@@ -36,7 +35,7 @@ from ssdv.tax.posting import post_gst_settlement
 from ssdv.validate import VOLUME_GATES, run_gates
 
 
-def _stocked_product(session, min_qty: Decimal = Decimal("10")) -> Product:
+def _stocked_product(session, min_qty: Decimal = Decimal(10)) -> Product:
     as_of = date(2026, 3, 31)
     for product in session.scalars(select(Product).order_by(Product.code)):
         if stock_quantity(session, as_of, product.code) >= min_qty:
@@ -82,7 +81,9 @@ def test_bank_charge_and_emi(session) -> None:
     )
     assert ledger_balance(session, INTEREST_LOAN, as_of) == money("50000")
     assert ledger_balance(session, TERM_LOAN, as_of) == money(loan_before + money("60000"))
-    assert ledger_balance(session, BANK_HDFC, as_of) == money(bank_before - money("1500") - money("110000"))
+    assert ledger_balance(session, BANK_HDFC, as_of) == money(
+        bank_before - money("1500") - money("110000")
+    )
 
 
 def test_depreciation_and_year_end_close(session) -> None:
@@ -115,14 +116,14 @@ def test_gst_setoff_and_payment(session) -> None:
         bill_date=date(2023, 4, 4),
         vendor=vendor,
         warehouse=warehouse,
-        lines=[PurchaseLineInput(product=product, qty=Decimal("4"), rate=money(product.cost_price))],
+        lines=[PurchaseLineInput(product=product, qty=Decimal(4), rate=money(product.cost_price))],
     )
     invoice = post_sale(
         session,
         invoice_date=date(2023, 4, 10),
         customer=customer,
         warehouse=warehouse,
-        lines=[SalesLineInput(product=product, qty=Decimal("2"), rate=money(product.selling_price))],
+        lines=[SalesLineInput(product=product, qty=Decimal(2), rate=money(product.selling_price))],
     )
     row = post_gst_settlement(
         session,
@@ -161,6 +162,7 @@ def test_generate_books_closes_years(session) -> None:
         g.name
         for g in gates
         if not g.ok
-        and g.name not in VOLUME_GATES - {"depreciation", "year_closed", "expense_months", "emi_count"}
+        and g.name
+        not in VOLUME_GATES - {"depreciation", "year_closed", "expense_months", "emi_count"}
     ]
     assert failed == []

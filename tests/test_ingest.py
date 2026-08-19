@@ -59,6 +59,18 @@ def test_unmapped_ledger_is_rejected(session, tmp_path: Path) -> None:
         ingest_generic(session, journals)
 
 
+def test_auto_mapping_heuristics_without_account_map(session, tmp_path: Path) -> None:
+    journals = tmp_path / "j.csv"
+    journals.write_text(
+        "voucher_id,date,account,debit,credit\n"
+        "1,2024-04-01,Sundry Debtors,100,0\n"
+        "1,2024-04-01,Sales Account,0,100\n",
+        encoding="utf-8",
+    )
+    result = ingest_generic(session, journals, company_name="Heuristic Co")
+    assert result.vouchers == 1
+
+
 def test_unbalanced_source_is_rejected(session, tmp_path: Path) -> None:
     journals = tmp_path / "j.csv"
     journals.write_text(
@@ -102,4 +114,4 @@ def test_ingest_parser_future_source() -> None:
     parser = build_parser()
     args = parser.parse_args(["ingest", "--source", "tally", "--journals", "x.csv"])
     assert args.source == "tally"
-    assert main(["ingest", "--source", "tally", "--journals", "x.csv"]) == 2
+    assert main(["ingest", "--source", "tally", "--journals", "x.csv"]) == 1

@@ -52,7 +52,9 @@ def ar_aging(session: Session, as_of: date) -> list[AgingLine]:
     rows: list[AgingLine] = []
     collected = invoice_allocation_map(session, as_of)
     invoices = session.scalars(
-        select(SalesInvoice).where(SalesInvoice.invoice_date <= as_of).order_by(SalesInvoice.invoice_date)
+        select(SalesInvoice)
+        .where(SalesInvoice.invoice_date <= as_of)
+        .order_by(SalesInvoice.invoice_date)
     )
     for invoice in invoices:
         due = money(invoice.grand_total - collected.get(invoice.invoice_no, ZERO))

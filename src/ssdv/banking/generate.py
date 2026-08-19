@@ -31,7 +31,7 @@ def generate_banking(session: Session, company: dict[str, Any] | None = None) ->
     od_limit = money(cfg["accounting"]["od_limit_inr"])
     charge_amt = money(cfg["opex"]["bank_charge"])
     emi_amt = money(cfg["loan"]["emi_inr"])
-    rate_monthly = money(cfg["loan"]["annual_rate_pct"]) / Decimal("100") / Decimal("12")
+    rate_monthly = money(cfg["loan"]["annual_rate_pct"]) / Decimal(100) / Decimal(12)
     outstanding = money(cfg["loan"]["principal_inr"])
     balances = current_bank_balances(session, books_end)
     charges = 0
@@ -67,8 +67,7 @@ def generate_banking(session: Session, company: dict[str, Any] | None = None) ->
         if principal < ZERO:
             principal = ZERO
             interest = emi_amt
-        if principal > outstanding:
-            principal = outstanding
+        principal = min(principal, outstanding)
         installment = money(principal + interest)
         bank = choose_bank(balances, installment, od_limit)
         if bank is None:

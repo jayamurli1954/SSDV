@@ -31,7 +31,7 @@ def test_purchase_intra_and_inter_state_gst(session) -> None:
     vendor_out = session.scalars(select(Vendor).where(Vendor.state_code != "27")).first()
     assert vendor_mh is not None and vendor_out is not None
 
-    qty = Decimal("10")
+    qty = Decimal(10)
     rate = money(product.cost_price)
     line = PurchaseLineInput(product=product, qty=qty, rate=rate)
     inv_before = ledger_balance(session, INVENTORY, date(2026, 3, 31))

@@ -246,6 +246,15 @@ def ceo_pack(snap: MisSnapshot) -> MisPack:
 def cfo_pack(snap: MisSnapshot) -> MisPack:
     from ssdv.mis.forecast import cash_forecast
 
+    # DuPont: ROE = (Net profit / Sales) * (Sales / Assets) * (Assets / Equity)
+    # v1 uses YTD profit as the net-profit component, and current equation assets/equity.
+    roe: Decimal | None = None
+    if snap.equity != ZERO and snap.fy.sales > ZERO and snap.equation.assets != ZERO:
+        profit_margin = snap.ytd_profit / snap.fy.sales
+        asset_turnover = snap.fy.sales / snap.equation.assets
+        equity_multiplier = snap.equation.assets / snap.equity
+        roe = profit_margin * asset_turnover * equity_multiplier
+
     dso_tone: Tone = "neutral"
     if snap.dso is not None:
         dso_tone = "danger" if snap.dso > DSO_DAYS_MAX else "success"
@@ -255,6 +264,13 @@ def cfo_pack(snap: MisSnapshot) -> MisPack:
     gst_net_tone: Tone = "warning" if snap.gst_net > ZERO else "neutral"
     tiles = (
         Tile("dso", "DSO (AR / FY sales)", _days(snap.dso), dso_tone, "120000"),
+        Tile(
+            "roe",
+            "DuPont ROE",
+            "n/a" if roe is None else _pct(roe, 1),
+            "neutral",
+            "330000",
+        ),
         Tile(
             "dio",
             "DIO (stock / FY COGS)",
@@ -266,6 +282,13 @@ def cfo_pack(snap: MisSnapshot) -> MisPack:
         Tile("ccc", "Cash conversion cycle", _days(snap.ccc), "warning", "ccc"),
         Tile("ar", "Trade receivables", _inr(snap.ar), ar_tone, "120000"),
         Tile("ap", "Trade payables", _inr(snap.ap), "neutral", "210000"),
+        Tile(
+            "msme_43bh",
+            "43B(h) MSME overdue risk",
+            _inr(snap.msme_43bh_total),
+            "danger" if snap.msme_43bh_total > ZERO else "success",
+            "msme",
+        ),
         Tile("inv", "Inventory (WAC)", _inr(snap.inventory), "neutral", "130000"),
         Tile("gst", "GST net liability", _inr(snap.gst_net), gst_net_tone, "gst"),
         Tile("gst_input", "Input GST", _inr(snap.gst_input), "neutral", "gst_in"),

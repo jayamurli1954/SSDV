@@ -6,7 +6,7 @@ TWOPLACES = Decimal("0.01")
 ZERO = Decimal("0.00")
 
 
-def money(value: Decimal | int | float | str) -> Decimal:
+def money(value: Decimal | float | str) -> Decimal:
     if isinstance(value, Decimal):
         quantized = value
     else:

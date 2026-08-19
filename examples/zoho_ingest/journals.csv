@@ -1,0 +1,13 @@
+voucher_id,date,voucher_type,account,debit,credit,party_type,party,narration
+SAL-1,2024-04-10,SALE,Sundry Debtors,118000.00,0,customer,CUST-A,Zoho export: sale CUST-A
+SAL-1,2024-04-10,SALE,Sales Account,0,100000.00,,,Zoho export: sale CUST-A
+SAL-1,2024-04-10,SALE,Output CGST,0,9000.00,,,Zoho export: sale CUST-A
+SAL-1,2024-04-10,SALE,Output SGST,0,9000.00,,,Zoho export: sale CUST-A
+PUR-1,2024-04-08,PURCHASE,Purchase Account,80000.00,0,,,Zoho export: purchase
+PUR-1,2024-04-08,PURCHASE,Input CGST,7200.00,0,,,Zoho export: purchase
+PUR-1,2024-04-08,PURCHASE,Input SGST,7200.00,0,,,Zoho export: purchase
+PUR-1,2024-04-08,PURCHASE,Sundry Creditors,0,94400.00,vendor,VEND-1,Zoho export: purchase VEND-1
+REC-1,2024-04-20,RECEIPT,HDFC Bank,118000.00,0,,,Zoho export: receipt
+REC-1,2024-04-20,RECEIPT,Sundry Debtors,0,118000.00,customer,CUST-A,Zoho export: receipt CUST-A
+PAY-1,2024-04-25,PAYMENT,Sundry Creditors,94400.00,0,vendor,VEND-1,Zoho export: payment VEND-1
+PAY-1,2024-04-25,PAYMENT,HDFC Bank,0,94400.00,,,Zoho export: payment VEND-1

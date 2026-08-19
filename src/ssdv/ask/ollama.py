@@ -60,23 +60,20 @@ def chat(
     except TimeoutError as exc:
         raise AskError(
             f"Ollama timed out after {int(wait)}s on {host or default_host()} "
-            f"(model {payload['model']}). Keep this running in another window:\n"
-            r'  & "C:\Users\Muralidhar\AppData\Local\Programs\Ollama\ollama.exe" serve'
-            "\n"
-            r'  & "C:\Users\Muralidhar\AppData\Local\Programs\Ollama\ollama.exe" run llama3.1:8b "ok"'
-            "\nThen retry the ask. First load of an 8B model can take several minutes."
+            f"(model {payload['model']}). Keep Ollama running in another window:\n"
+            "  ollama serve\n"
+            f'  ollama run {payload["model"]} "ok"\n'
+            "Then retry the ask. First load of an 8B model can take several minutes."
         ) from exc
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:400]
-        raise AskError(
-            f"Ollama HTTP {exc.code} for model {payload['model']}. {detail}"
-        ) from exc
+        raise AskError(f"Ollama HTTP {exc.code} for model {payload['model']}. {detail}") from exc
     except urllib.error.URLError as exc:
         raise AskError(
-            "Ollama is not running on "
-            f"{host or default_host()}. Start it with:\n"
-            r'  & "C:\Users\Muralidhar\AppData\Local\Programs\Ollama\ollama.exe" serve'
-            "\nWait until it is ready, then retry."
+            f"Ollama is not running on {host or default_host()}. "
+            "Start it with:\n"
+            "  ollama serve\n"
+            "Wait until it is ready, then retry."
         ) from exc
     message = raw.get("message") or {}
     text = str(message.get("content") or "").strip()

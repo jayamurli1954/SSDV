@@ -211,9 +211,25 @@ def product_blueprints(count: int = 350) -> list[ProductBlueprint]:
 
     for brand in BRANDS:
         for size in ("1.0", "1.5", "2.5", "4.0", "6.0", "10.0"):
-            add(f"{brand} House Wire {size} sqmm 90m", "wires", "8544", "18.00", 700, 4500, uom="COIL")
+            add(
+                f"{brand} House Wire {size} sqmm 90m",
+                "wires",
+                "8544",
+                "18.00",
+                700,
+                4500,
+                uom="COIL",
+            )
         for size in ("2C", "3C", "4C"):
-            add(f"{brand} Armoured Cable 4 sqmm {size}", "cables", "8544", "18.00", 1800, 9000, uom="MTR")
+            add(
+                f"{brand} Armoured Cable 4 sqmm {size}",
+                "cables",
+                "8544",
+                "18.00",
+                1800,
+                9000,
+                uom="MTR",
+            )
         for watt in (9, 12, 18, 20, 36, 40):
             add(f"{brand} LED Panel {watt}W", "lighting", "9405", "12.00", 180, 1400)
         for watt in (20, 30, 50, 100):
@@ -223,7 +239,14 @@ def product_blueprints(count: int = 350) -> list[ProductBlueprint]:
         for hp in ("0.5", "1.0", "2.0", "3.0", "5.0", "7.5", "10.0"):
             add(f"{brand} Induction Motor {hp} HP", "motors", "8501", "18.00", 3500, 28000)
         for kva in ("1", "2", "3", "5", "10"):
-            add(f"{brand} Isolation Transformer {kva} kVA", "transformers", "8504", "18.00", 4200, 22000)
+            add(
+                f"{brand} Isolation Transformer {kva} kVA",
+                "transformers",
+                "8504",
+                "18.00",
+                4200,
+                22000,
+            )
 
     for brand in ("PanelCraft", "InduSwitch", "Voltara"):
         for size in ("4way", "8way", "12way", "16way"):

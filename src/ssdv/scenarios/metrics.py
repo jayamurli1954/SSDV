@@ -46,7 +46,9 @@ def _journal_party_totals(
 ) -> tuple[str | None, Decimal, Decimal]:
     """Sum SALE/PURCHASE control lines by party. Returns top party, top amount, total."""
     stmt = (
-        select(JournalLine.party_code, func.sum(JournalLine.credit if credit else JournalLine.debit))
+        select(
+            JournalLine.party_code, func.sum(JournalLine.credit if credit else JournalLine.debit)
+        )
         .join(Voucher, Voucher.id == JournalLine.voucher_id)
         .where(Voucher.voucher_type == voucher_type)
         .where(Voucher.voucher_date <= as_of)
@@ -103,9 +105,7 @@ def scenario_metrics(session: Session, as_of: date, company: dict) -> ScenarioMe
         .limit(1)
     ).first()
     if taxable <= ZERO:
-        taxable = money(
-            -voucher_account_net(session, SALES, as_of, (VoucherType.SALE.value,))
-        )
+        taxable = money(-voucher_account_net(session, SALES, as_of, (VoucherType.SALE.value,)))
         cogs = voucher_account_net(session, COGS, as_of, (VoucherType.SALE.value,))
         cust_code, cust_amt, _ = _journal_party_totals(
             session, as_of, VoucherType.SALE.value, AR_CONTROL, "customer", credit=False

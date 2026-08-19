@@ -17,7 +17,7 @@ from ssdv.sales.posting import SalesLineInput, post_sale
 from ssdv.validate import VOLUME_GATES, run_gates
 
 
-def _stocked_product(session, min_qty: Decimal = Decimal("10")) -> Product:
+def _stocked_product(session, min_qty: Decimal = Decimal(10)) -> Product:
     as_of = date(2026, 3, 31)
     for product in session.scalars(select(Product).order_by(Product.code)):
         if stock_quantity(session, as_of, product.code) >= min_qty:
@@ -34,7 +34,7 @@ def test_sale_intra_inter_and_cogs_at_wac(session) -> None:
     customer_out = session.scalars(select(Customer).where(Customer.state_code != "27")).first()
     assert customer_mh is not None and customer_out is not None
 
-    qty = Decimal("5")
+    qty = Decimal(5)
     as_of_before = date(2023, 4, 1)
     wac = money(
         stock_value(session, as_of_before, product.code)
@@ -72,14 +72,18 @@ def test_sale_intra_inter_and_cogs_at_wac(session) -> None:
 
     intra_accounts = {
         row.account_code
-        for row in session.scalars(select(JournalLine).where(JournalLine.voucher_id == intra.voucher_id))
+        for row in session.scalars(
+            select(JournalLine).where(JournalLine.voucher_id == intra.voucher_id)
+        )
     }
     assert {SALES, COGS, INVENTORY, AR_CONTROL, OUTPUT_CGST, OUTPUT_SGST} <= intra_accounts
     assert OUTPUT_IGST not in intra_accounts
 
     inter_accounts = {
         row.account_code
-        for row in session.scalars(select(JournalLine).where(JournalLine.voucher_id == inter.voucher_id))
+        for row in session.scalars(
+            select(JournalLine).where(JournalLine.voucher_id == inter.voucher_id)
+        )
     }
     assert OUTPUT_IGST in inter_accounts
     assert OUTPUT_CGST not in inter_accounts
@@ -97,7 +101,7 @@ def test_sale_intra_inter_and_cogs_at_wac(session) -> None:
 
 def test_sale_rejects_negative_stock(session) -> None:
     bootstrap_books(session)
-    product = _stocked_product(session, min_qty=Decimal("1"))
+    product = _stocked_product(session, min_qty=Decimal(1))
     warehouse = session.scalars(select(Warehouse).limit(1)).first()
     customer = session.scalars(select(Customer).limit(1)).first()
     assert warehouse is not None and customer is not None
@@ -111,7 +115,7 @@ def test_sale_rejects_negative_stock(session) -> None:
             lines=[
                 SalesLineInput(
                     product=product,
-                    qty=available + Decimal("1"),
+                    qty=available + Decimal(1),
                     rate=money(product.selling_price),
                 )
             ],

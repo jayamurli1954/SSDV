@@ -13,6 +13,7 @@ from ssdv.gl import AP_CONTROL, INPUT_CGST, INPUT_IGST, INPUT_SGST, INVENTORY
 from ssdv.gst import gst_split, is_interstate
 from ssdv.inventory.stock import record_stock_move
 from ssdv.models import (
+    Branch,
     Product,
     PurchaseBill,
     PurchaseBillLine,
@@ -52,10 +53,15 @@ def post_purchase(
         raise ValueError("A purchase bill needs at least one line")
 
     cfg = company or load_company()
-    home_state = str(cfg["accounting"]["home_state_code"])
+    default_home_state = str(cfg["accounting"]["home_state_code"])
     if vendor.state_code is None:
         raise ValueError(f"Vendor {vendor.code} has no state")
-    interstate = is_interstate(vendor.state_code, home_state)
+    recipient_state = default_home_state
+    if warehouse.branch_code:
+        branch = session.get(Branch, warehouse.branch_code)
+        if branch is not None and branch.state_code:
+            recipient_state = str(branch.state_code)
+    interstate = is_interstate(vendor.state_code, recipient_state)
     fy = fy_code(bill_date)
     seq = _next_doc_no(session, fy)
     bill_no = f"PUR/{fy}/{seq:06d}"

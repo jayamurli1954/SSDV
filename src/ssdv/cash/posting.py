@@ -60,7 +60,9 @@ def post_receipt(
         if invoice_no is None:
             due = opening_ar_outstanding(session, customer.code, receipt_date)
         else:
-            invoice = session.scalar(select(SalesInvoice).where(SalesInvoice.invoice_no == invoice_no))
+            invoice = session.scalar(
+                select(SalesInvoice).where(SalesInvoice.invoice_no == invoice_no)
+            )
             if invoice is None:
                 raise PostingError(f"Unknown invoice {invoice_no}")
             if invoice.customer_code != customer.code:
@@ -194,8 +196,6 @@ def post_payment(
     session.add(payment)
     session.flush()
     for bill_no, alloc_amt in allocations:
-        payment.allocations.append(
-            PaymentAllocation(bill_no=bill_no, amount=money(alloc_amt))
-        )
+        payment.allocations.append(PaymentAllocation(bill_no=bill_no, amount=money(alloc_amt)))
     session.flush()
     return payment

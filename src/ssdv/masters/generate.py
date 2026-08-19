@@ -61,7 +61,9 @@ def _pick_state(rng: random.Random, home_pct: int) -> str:
     return rng.choice(OTHER_STATES)
 
 
-def _unique_name(rng: random.Random, prefixes: tuple[str, ...], suffixes: tuple[str, ...], used: set[str]) -> str:
+def _unique_name(
+    rng: random.Random, prefixes: tuple[str, ...], suffixes: tuple[str, ...], used: set[str]
+) -> str:
     for _ in range(5000):
         name = f"{rng.choice(prefixes)} {rng.choice(suffixes)}"
         if rng.random() < 0.35:
@@ -145,6 +147,12 @@ def generate_vendors(session: Session, cfg: dict[str, Any], rng: random.Random) 
     created = 0
     for i in range(1, target + 1):
         state = _pick_state(rng, 50)
+        msme_category: str | None = None
+        msme_has_agreement = False
+        # Seed MSME tags so 43B(h) analysis has real data in generated datasets.
+        if rng.random() < 0.18:
+            msme_category = rng.choice(["Micro", "Small", "Medium"])
+            msme_has_agreement = rng.random() < 0.45
         pan = random_pan(rng, fourth="C", used=pans)
         session.add(
             Vendor(
@@ -156,6 +164,8 @@ def generate_vendors(session: Session, cfg: dict[str, Any], rng: random.Random) 
                 gstin=make_gstin(state, pan),
                 payment_days=rng.choice([21, 30, 45, 60]),
                 lead_time_days=rng.choice([3, 7, 10, 14, 21]),
+                msme_category=msme_category,
+                msme_has_agreement=msme_has_agreement,
                 is_active=True,
             )
         )

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ssdv.models import Account, JournalLine, Voucher
@@ -32,50 +32,28 @@ def trial_balance(session: Session, as_of: date) -> list[TrialBalanceRow]:
             Account.name,
             Account.type,
             Account.subtype,
-            JournalLine.debit,
-            JournalLine.credit,
+            func.coalesce(func.sum(JournalLine.debit), 0),
+            func.coalesce(func.sum(JournalLine.credit), 0),
         )
         .join(JournalLine, JournalLine.account_code == Account.code)
         .join(Voucher, Voucher.id == JournalLine.voucher_id)
         .where(Voucher.voucher_date <= as_of)
         .where(Account.postable.is_(True))
+        .group_by(Account.code, Account.name, Account.type, Account.subtype)
     )
-    totals: dict[str, TrialBalanceRow] = {}
-    for code, name, acc_type, subtype, debit, credit in session.execute(stmt):
-        row = totals.get(code)
-        debit_amt = money(debit)
-        credit_amt = money(credit)
-        if row is None:
-            totals[code] = TrialBalanceRow(
-                account_code=code,
-                account_name=name,
-                account_type=acc_type,
-                subtype=subtype,
-                debit=debit_amt,
-                credit=credit_amt,
-            )
-        else:
-            totals[code] = TrialBalanceRow(
-                account_code=code,
-                account_name=name,
-                account_type=acc_type,
-                subtype=subtype,
-                debit=money(row.debit + debit_amt),
-                credit=money(row.credit + credit_amt),
-            )
 
     rows: list[TrialBalanceRow] = []
-    for row in totals.values():
-        net = money(row.debit - row.credit)
+    for code, name, acc_type, subtype, debit_total, credit_total in session.execute(stmt):
+        net = money(Decimal(debit_total) - Decimal(credit_total))
         if net == ZERO:
             continue
         if net > ZERO:
             rows.append(
                 TrialBalanceRow(
-                    account_code=row.account_code,
-                    account_name=row.account_name,
-                    account_type=row.account_type,
-                    subtype=row.subtype,
+                    account_code=code,
+                    account_name=name,
+                    account_type=acc_type,
+                    subtype=subtype,
                     debit=net,
                     credit=ZERO,
                 )
@@ -83,10 +61,10 @@ def trial_balance(session: Session, as_of: date) -> list[TrialBalanceRow]:
         else:
             rows.append(
                 TrialBalanceRow(
-                    account_code=row.account_code,
-                    account_name=row.account_name,
-                    account_type=row.account_type,
-                    subtype=row.subtype,
+                    account_code=code,
+                    account_name=name,
+                    account_type=acc_type,
+                    subtype=subtype,
                     debit=ZERO,
                     credit=money(-net),
                 )

@@ -147,4 +147,7 @@ def apply_scenario(company: dict[str, Any] | None, scenario_id: str) -> dict[str
 
 
 def knobs(cfg: dict[str, Any]) -> dict[str, Any]:
-    return dict(cfg.get("scenario_knobs") or _KNOBS.get(str(cfg.get("generator", {}).get("scenario", "baseline")), {}))
+    return dict(
+        cfg.get("scenario_knobs")
+        or _KNOBS.get(str(cfg.get("generator", {}).get("scenario", "baseline")), {})
+    )

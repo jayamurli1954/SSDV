@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from sqlalchemy import select
@@ -12,7 +12,7 @@ from ssdv.models import Customer, Product, Vendor, Warehouse
 from ssdv.money import ZERO, money
 from ssdv.paths import load_company
 
-QTY_ONE = Decimal("1")
+QTY_ONE = Decimal(1)
 
 
 def opening_amount(company: dict[str, Any], account_code: str) -> Decimal:

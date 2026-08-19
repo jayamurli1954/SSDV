@@ -12,7 +12,11 @@ from ssdv.accounting.posting import LineDraft, PostingRequest, post
 from ssdv.gl import AP_CONTROL, AR_CONTROL
 from ssdv.inventory.stock import record_stock_move
 from ssdv.masters.generate import generate_all_masters
-from ssdv.masters.opening_alloc import allocate_opening_ap, allocate_opening_ar, allocate_opening_stock
+from ssdv.masters.opening_alloc import (
+    allocate_opening_ap,
+    allocate_opening_ar,
+    allocate_opening_stock,
+)
 from ssdv.models import BankMaster, StockMove, Voucher, VoucherType
 from ssdv.money import ZERO, money
 from ssdv.paths import load_company, opening_entries
@@ -50,7 +54,9 @@ def post_opening(
     rng: random.Random | None = None,
 ) -> Voucher | None:
     cfg = company or load_company()
-    existing = session.scalar(select(Voucher).where(Voucher.voucher_type == VoucherType.OPENING.value))
+    existing = session.scalar(
+        select(Voucher).where(Voucher.voucher_type == VoucherType.OPENING.value)
+    )
     if existing is not None:
         return existing
 

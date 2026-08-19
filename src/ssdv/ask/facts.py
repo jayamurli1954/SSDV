@@ -45,15 +45,14 @@ def compact_facts(payload: dict[str, Any], *, months: int = 12) -> dict[str, Any
         "scorecard": payload.get("scorecard") or [],
         "red_flags": payload.get("red_flags") or [],
         "why_notes": [
-            item
-            for item in payload.get("insights") or []
-            if item.get("surface") == "why"
+            item for item in payload.get("insights") or [] if item.get("surface") == "why"
         ],
         "cash_forecast": payload.get("cash_forecast") or {},
         "benchmarks": payload.get("benchmarks") or [],
         "benchmark_source": payload.get("benchmark_source") or "",
         "whatif": payload.get("whatif") or [],
         "whatif_method": payload.get("whatif_method") or "",
+        "parties": payload.get("parties") or {},
         "monthly": monthly,
         "ar_aging": (payload.get("charts") or {}).get("ar_aging"),
         "ap_aging": (payload.get("charts") or {}).get("ap_aging"),

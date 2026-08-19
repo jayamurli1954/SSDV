@@ -31,10 +31,10 @@ from ssdv.money import ZERO, money
 from ssdv.paths import load_company
 
 _OPEX_ROWS = (
-    ("rent", RENT, "rent", Decimal("0")),
+    ("rent", RENT, "rent", Decimal(0)),
     ("electricity", ELECTRICITY, "electricity", Decimal("0.20")),
     ("telephone", TELEPHONE, "telephone", Decimal("0.10")),
-    ("insurance", INSURANCE, "insurance", Decimal("0")),
+    ("insurance", INSURANCE, "insurance", Decimal(0)),
     ("repairs", REPAIRS, "repairs", Decimal("0.40")),
     ("fuel", FUEL, "fuel", Decimal("0.25")),
     ("office", OFFICE_EXPENSES, "office", Decimal("0.15")),
@@ -45,7 +45,7 @@ _OPEX_ROWS = (
 def _jitter(rng: random.Random, base: Decimal, pct: Decimal) -> Decimal:
     if pct == ZERO:
         return money(base)
-    factor = Decimal("1") + Decimal(str(rng.uniform(float(-pct), float(pct))))
+    factor = Decimal(1) + Decimal(str(rng.uniform(float(-pct), float(pct))))
     return money(base * factor)
 
 

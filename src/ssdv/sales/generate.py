@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from sqlalchemy import func, select
@@ -17,7 +17,7 @@ from ssdv.paths import load_company
 from ssdv.sales.posting import SalesLineInput, post_sale
 from ssdv.scenarios.spec import knobs
 
-QTY_ONE = Decimal("1")
+QTY_ONE = Decimal(1)
 TIER_WEIGHT = {"core": 8.0, "regular": 2.0, "occasional": 0.5}
 BRANCH_WAREHOUSE = {
     "BR01": "WH-PUN",
@@ -107,7 +107,9 @@ def generate_sales(
             _apply_receipt(state, receipts[receipt_idx])
             receipt_idx += 1
 
-    for year_i, (year, n_bills, full_n) in enumerate(zip(years, year_counts, full_counts, strict=True)):
+    for year_i, (year, n_bills, full_n) in enumerate(
+        zip(years, year_counts, full_counts, strict=True)
+    ):
         if n_bills <= 0:
             continue
         start = date.fromisoformat(str(year["start"]))
@@ -117,7 +119,9 @@ def generate_sales(
         days = working_days(start, end, skip_sundays=skip_sundays, holidays=holidays)
         if not days:
             raise RuntimeError(f"No working days in {year['code']}")
-        revenue_base = years[0]["revenue_inr"] if extra.get("sales_flat_revenue") else year["revenue_inr"]
+        revenue_base = (
+            years[0]["revenue_inr"] if extra.get("sales_flat_revenue") else year["revenue_inr"]
+        )
         bill_target = money(Decimal(str(revenue_base)) / Decimal(max(full_n, 1)))
         sell_mult = Decimal(str((extra.get("sell_multipliers") or [1, 1, 1])[year_i]))
         made = 0

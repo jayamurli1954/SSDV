@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "license_id": "OM-DEMO-PROF-001",
+  "customer_name": "Sample Traders Pvt Ltd",
+  "gstin": "29AABCU9603R1ZM",
+  "plan_id": "professional",
+  "company_limit": 1,
+  "issued_at": "2026-04-01",
+  "amc_expires_at": "2027-03-31",
+  "features": {}
+}

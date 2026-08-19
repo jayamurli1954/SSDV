@@ -2,6 +2,8 @@
 
 SanMitra Synthetic Data Vault (SSDV) is a **journal-first** tool. It either **generates** internally consistent Indian trading-company books, or **reads** journals exported from another application, then shows **CEO / CFO / Board KPIs**, charts, and AI notes.
 
+**Client install (non-technical):** [CLIENT_INSTALL.md](CLIENT_INSTALL.md) · **Client manual (FAQs, support):** [CLIENT_MANUAL.md](CLIENT_MANUAL.md) · Support: **contact@sanmitratech.in** · [sanmitratech.in](https://www.sanmitratech.in)
+
 GitHub (private): [https://github.com/jayamurli1954/SSDV](https://github.com/jayamurli1954/SSDV)
 
 ## 1. What SSDV is and is not
@@ -106,13 +108,13 @@ Sidebar: vault `ssdv_connect.sqlite`, as of **2024-04-30**, screen **CEO**.
 
 | Screen | What you see |
 | --- | --- |
-| **CEO** | OfficeMitra notes, 14 KPI tiles, benchmarks vs SSDV policy, **what-if scenarios (recommend-only)**, sales vs COGS, gross margin, collections, P&L mix, monthly profit, why-notes, why chips, optional typed question |
-| **CFO** | Cash forecast 30/60/90 from open AR/AP (no sales plan), GST input/output/net, bank position, aging 0-30 through 120+, DSO / DIO / DPO / CCC |
-| **Board** | Red flags first, then assets / liabilities / equity, working-capital parts, policy scorecard, **benchmarks vs SSDV policy and ABC trading baseline** (not an industry survey), cash-cycle days |
+| **CEO** | 14 KPI tiles, **top overdue customers**, benchmarks vs SSDV policy, **what-if scenarios (recommend-only)**, sales vs COGS, gross margin, collections, P&L mix, monthly profit, why-notes, why chips, optional typed question |
+| **CFO** | Cash forecast 30/60/90 from open AR/AP (no sales plan), GST input/output/net, bank position, aging 0-30 through 120+, **top overdue customers and top vendor exposure**, DSO / DIO / DPO / CCC |
+| **Board** | Red flags first, then assets / liabilities / equity, working-capital parts, policy scorecard, **benchmarks vs SSDV policy and ABC trading baseline** (not an industry survey), cash-cycle days, **top overdue / vendor tables** |
 | **Charts** | Activity, sales vs COGS, cash movement, margin, P&L mix, monthly profit, aging |
 | **Connect** | Upload a journal CSV + optional ledger map (read-only extract) |
 
-**Download Board pack (PDF)** writes an A4 pack (red flags, Board tiles, scorecard, benchmarks, 30/60/90 cash, what-if). Journals are not changed. PPT is not in this pack. **Download full report (HTML)** is the CEO screen; open it in Edge and **Ctrl+P** if you want a print of that page.
+**Download Board pack (PDF)** writes an A4 pack (red flags, Board tiles, scorecard, benchmarks, 30/60/90 cash, what-if, top overdue customers, top vendor exposure). Journals are not changed. PPT is not in this pack. **Download full report (HTML)** is the CEO screen; open it in Edge and **Ctrl+P** if you want a print of that page.
 
 All numbers come from **posted journals**. Unbalanced books never get a chart.
 
@@ -400,6 +402,8 @@ cd D:\SSDV
 | **GST net liability** | Output GST − input GST from the trial balance (falls back to GST payable if those ledgers are empty). |
 | **Benchmarks** | Hold / Breach vs SSDV policy bands. Optional peer is **ABC Industrial generated baseline**, not a surveyed industry average. |
 | **What-if** | Recommend-only levers from posted books (DSO to 120, sales +15% at same margin, collect AR 90+, collections to 80%). Journals are not changed. |
+| **Top overdue customers** | Ranked by AR 90+ from invoice aging. If there is no 90+ aging (CSV journals without invoice dates), ranked by largest AR balance. Unaged means no invoice date. |
+| **Top vendor exposure** | Ranked by open AP. AP 90+ uses invoice/bill aging when bills exist. |
 | **Collection efficiency** | Receipts ÷ sales for the period. |
 | **Operating working capital** | AR + inventory − AP. |
 | **As of** | The date of the snapshot. For ABC full books use **31 Mar 2026**. A date *after* year-end (for example 30 Apr 2026) shows an empty new year (sales 0, “revenue decreased 100%”). |

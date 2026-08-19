@@ -13,7 +13,7 @@ from ssdv.accounting.trial_balance import ledger_balance, tb_totals, trial_balan
 from ssdv.ask import AskError, ask_books, default_model
 from ssdv.cash.aging import aging_totals, ap_aging, ar_aging
 from ssdv.cash.generate import generate_settlements
-from ssdv.db import create_schema, drop_schema, make_engine, session_scope
+from ssdv.cash.parties import customer_vendor_tops
 from ssdv.connectors import (
     ConnectorError,
     ConnectorNotReady,
@@ -21,6 +21,7 @@ from ssdv.connectors import (
     load_into_vault,
     source_ids,
 )
+from ssdv.db import create_schema, drop_schema, make_engine, session_scope
 from ssdv.ingest import IngestError
 from ssdv.mis import PACK_IDS, mis_snapshot, render_mis, snapshot_payload
 from ssdv.models import (
@@ -35,10 +36,10 @@ from ssdv.models import (
 )
 from ssdv.officemitra import render_board_pdf, render_dashboard
 from ssdv.paths import (
+    connect_db_path,
     default_board_pack_path,
     default_dashboard_path,
     default_db_path,
-    connect_db_path,
     ingest_db_path,
     load_company,
     repo_root,
@@ -106,7 +107,9 @@ def cmd_init(args: argparse.Namespace) -> int:
         print(f"Database: {db_path}")
         print(f"Scenario: {cfg['generator']['scenario']}")
         print(f"Opening voucher {voucher.voucher_type}/{voucher.fy_code}/{voucher.voucher_no:06d}")
-        print(f"Customers {customers}  Vendors {vendors}  Products {products}  Employees {employees}")
+        print(
+            f"Customers {customers}  Vendors {vendors}  Products {products}  Employees {employees}"
+        )
         print(f"Purchase bills {bills} (+{created} this run)")
         print(f"Sales invoices {invoices} (+{sold} this run)")
         print(f"Receipts {receipt_n} (+{receipts} this run)")
@@ -225,6 +228,19 @@ def cmd_aging(args: argparse.Namespace) -> int:
         print(f"AP aging as of {args.as_of.isoformat()}  ({len(ap_rows)} open items)")
         for name in ("0-30", "31-60", "61-90", "91-120", "120+", "90+", "total"):
             print(f"  {name:<8} {ap[name]:>16,.2f}")
+        customers, rank, vendors = customer_vendor_tops(session, args.as_of)
+        print(f"Top overdue customers ({rank})")
+        for row in customers:
+            days = f"{row.oldest_days} d" if row.oldest_days is not None else "unaged"
+            print(
+                f"  {row.name:<28} 90+ {row.overdue_90:>14,.2f}  AR {row.outstanding:>14,.2f}  {days}"
+            )
+        print("Top vendor exposure")
+        for row in vendors:
+            days = f"{row.oldest_days} d" if row.oldest_days is not None else "unaged"
+            print(
+                f"  {row.name:<28} AP {row.outstanding:>14,.2f}  90+ {row.overdue_90:>14,.2f}  {days}"
+            )
     return 0
 
 
@@ -266,7 +282,9 @@ def cmd_explain(args: argparse.Namespace) -> int:
         print(cfg["scenario_meta"]["golden"])
         print(f"Top customer {metrics.top_customer} share {metrics.top_customer_share}")
         print(f"Top vendor   {metrics.top_vendor} share {metrics.top_vendor_share}")
-        print(f"AR/sales {metrics.ar_to_sales}  inventory/sales {metrics.inventory_to_sales}  COGS/sales {metrics.cogs_ratio}")
+        print(
+            f"AR/sales {metrics.ar_to_sales}  inventory/sales {metrics.inventory_to_sales}  COGS/sales {metrics.cogs_ratio}"
+        )
         print("Signal OK" if ok else f"Signal FAIL {detail}")
         return 0 if ok else 1
 
@@ -346,17 +364,45 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
         if args.pdf:
             out = args.out
             if out.suffix.lower() != ".pdf":
-                out = default_board_pack_path() if out == default_dashboard_path() else out.with_suffix(".pdf")
+                out = (
+                    default_board_pack_path()
+                    if out == default_dashboard_path()
+                    else out.with_suffix(".pdf")
+                )
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_bytes(render_board_pdf(payload))
             print(f"Database: {_db(args)}")
             print(f"Wrote:    {out}")
-            print("Board pack PDF from posted journals. PPT is not in this pack.")
+            print("Board pack PDF from posted journals.")
+            if getattr(args, "excel", False):
+                from ssdv.officemitra.export import write_excel
+
+                excel_out = out.with_suffix(".xlsx")
+                write_excel(payload, excel_out)
+                print(f"Wrote:    {excel_out}")
+            if getattr(args, "ppt", False):
+                from ssdv.officemitra.export import write_ppt
+
+                ppt_out = out.with_suffix(".pptx")
+                write_ppt(payload, ppt_out)
+                print(f"Wrote:    {ppt_out}")
         else:
             out.write_text(render_dashboard(payload), encoding="utf-8")
             print(f"Database: {_db(args)}")
             print(f"Wrote:    {out}")
             print("Open the HTML file in a browser. OfficeMitra lines sit on the CEO screen.")
+            if getattr(args, "excel", False):
+                from ssdv.officemitra.export import write_excel
+
+                excel_out = out.with_suffix(".xlsx")
+                write_excel(payload, excel_out)
+                print(f"Wrote:    {excel_out}")
+            if getattr(args, "ppt", False):
+                from ssdv.officemitra.export import write_ppt
+
+                ppt_out = out.with_suffix(".pptx")
+                write_ppt(payload, ppt_out)
+                print(f"Wrote:    {ppt_out}")
         return 0 if snap.equation.holds else 1
 
 
@@ -386,7 +432,7 @@ def cmd_ui(args: argparse.Namespace) -> int:
     if python is None:
         print("Streamlit is not installed in this Python.")
         print("Do not pip-install into global Python (that broke sanmitra_unified-Next preflight).")
-        print(r'Use the SSDV venv:')
+        print(r"Use the SSDV venv:")
         print(r'  D:\SSDV\.venv\Scripts\python.exe -m pip install -e ".[ui]"')
         print(r"  D:\SSDV\.venv\Scripts\ssdv.exe ui --as-of 2026-03-31")
         return 2
@@ -467,25 +513,30 @@ def _print_connectors() -> int:
         print(f"{'':14} {item.hint}")
     print()
     print("SSDV reads exports only. It never writes back to Tally, Zoho, Busy, or MitraBooks.")
-    print("Ready path today: export a journal CSV and --source generic.")
+    print(
+        "Ready paths: journal CSV (--source generic), TallyPrime XML (--source tally), "
+        "or live TallyPrime pull (--source tally-http --host http://localhost:9000)."
+    )
     return 0
 
 
 def _cmd_load_external(args: argparse.Namespace, sidecar: Path, verb: str) -> int:
     if getattr(args, "list", False):
         return _print_connectors()
-    if args.journals is None:
+    source = args.source
+    if source != "tally-http" and args.journals is None:
         print(f"ssdv {verb} needs --journals PATH (or use --list).")
         return 1
     db_path = _sidecar_db(args, sidecar)
     try:
         result = load_into_vault(
             db_path,
-            source=args.source,
+            source=source,
             journals=args.journals,
             account_map=args.map,
             company_name=args.name,
             force=args.force,
+            tally_host=getattr(args, "host", None),
         )
     except ConnectorNotReady as exc:
         print(str(exc))
@@ -612,7 +663,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=default_dashboard_path(),
         help="HTML path (default: data/mis.html). With --pdf, default is data/board-pack.pdf",
     )
-    dash.add_argument("--pdf", action="store_true", help="Write a Board pack PDF instead of CEO HTML")
+    dash.add_argument(
+        "--pdf", action="store_true", help="Write a Board pack PDF instead of CEO HTML"
+    )
+    dash.add_argument("--excel", action="store_true", help="Also write an executive .xlsx")
+    dash.add_argument("--ppt", action="store_true", help="Also write an executive .pptx")
     dash.add_argument("--ask", action="store_true", help="Add an Ollama paragraph if Ollama is up")
     dash.add_argument("--model", default=None)
     dash.add_argument("--host", default=None)
@@ -659,6 +714,9 @@ def build_parser() -> argparse.ArgumentParser:
     ing.add_argument("--map", type=Path, default=None, help="CSV or YAML ledger -> account_code")
     ing.add_argument("--name", default=None, help="Company legal name for MIS packs")
     ing.add_argument("--force", action="store_true", help="Replace an existing ingest vault")
+    ing.add_argument(
+        "--host", default=None, help="TallyPrime HTTP URL (default: http://localhost:9000)"
+    )
     ing.set_defaults(func=cmd_ingest)
 
     conn = sub.add_parser(
@@ -676,6 +734,9 @@ def build_parser() -> argparse.ArgumentParser:
     conn.add_argument("--map", type=Path, default=None, help="CSV or YAML ledger -> account_code")
     conn.add_argument("--name", default=None, help="Company legal name for MIS packs")
     conn.add_argument("--force", action="store_true", help="Replace an existing connect vault")
+    conn.add_argument(
+        "--host", default=None, help="TallyPrime HTTP URL (default: http://localhost:9000)"
+    )
     conn.set_defaults(func=cmd_connect)
 
     return parser

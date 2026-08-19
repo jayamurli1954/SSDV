@@ -88,7 +88,9 @@ def pay_opex(
             voucher_type=VoucherType.JOURNAL,
             narration=f"Pay {entry.expense_no} {entry.kind}",
             lines=[
-                LineDraft(account_code=entry.payable_gl, debit=amount, line_narration=entry.expense_no),
+                LineDraft(
+                    account_code=entry.payable_gl, debit=amount, line_narration=entry.expense_no
+                ),
                 LineDraft(account_code=bank_gl, credit=amount, line_narration=entry.expense_no),
             ],
             source="opex_payment",

@@ -16,7 +16,9 @@ from ssdv.paths import load_company
 from ssdv.tax.posting import post_gst_settlement
 
 
-def _sum_tax(session: Session, model, date_col, start: date, end: date) -> tuple[Decimal, Decimal, Decimal]:
+def _sum_tax(
+    session: Session, model, date_col, start: date, end: date
+) -> tuple[Decimal, Decimal, Decimal]:
     cgst = money(
         session.scalar(
             select(func.coalesce(func.sum(model.cgst), 0)).where(date_col >= start, date_col <= end)
@@ -56,7 +58,9 @@ def generate_gst(session: Session, company: dict[str, Any] | None = None) -> int
         out_c, out_s, out_i = _sum_tax(
             session, SalesInvoice, SalesInvoice.invoice_date, start, period_end
         )
-        in_c, in_s, in_i = _sum_tax(session, PurchaseBill, PurchaseBill.bill_date, start, period_end)
+        in_c, in_s, in_i = _sum_tax(
+            session, PurchaseBill, PurchaseBill.bill_date, start, period_end
+        )
         if out_c + out_s + out_i + in_c + in_s + in_i == ZERO:
             continue
         if out_c + out_s + out_i == ZERO:

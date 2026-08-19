@@ -172,9 +172,13 @@ def load_journal_csv(path: Path) -> list[SourceLine]:
                     debit=debit,
                     credit=credit,
                     party_type=_party_type(row.get(col_ptype) if col_ptype else None),
-                    party_code=(str(row.get(col_party) or "").strip() or None) if col_party else None,
+                    party_code=(str(row.get(col_party) or "").strip() or None)
+                    if col_party
+                    else None,
                     narration=str(row.get(col_narr) or "").strip() if col_narr else "",
-                    line_narration=(str(row.get(col_line) or "").strip() or None) if col_line else None,
+                    line_narration=(str(row.get(col_line) or "").strip() or None)
+                    if col_line
+                    else None,
                     row_no=index,
                 )
             )
@@ -197,7 +201,9 @@ def grouped_vouchers(lines: list[SourceLine]) -> dict[str, list[SourceLine]]:
     return dict(groups)
 
 
-def drafts_for(group: list[SourceLine], mapping: dict[str, str], known_codes: set[str]) -> list[LineDraft]:
+def drafts_for(
+    group: list[SourceLine], mapping: dict[str, str], known_codes: set[str]
+) -> list[LineDraft]:
     from ssdv.ingest.mapping import resolve_account
 
     drafts: list[LineDraft] = []

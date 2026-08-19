@@ -114,6 +114,7 @@ def snapshot_payload(
         "series": _json_ready(snap.series),
         "charts": _charts_payload(snap),
         "cash_forecast": _forecast_payload(snap),
+        "parties": _parties_payload(snap),
         "insights": [
             {
                 "id": item.id,
@@ -185,10 +186,30 @@ def _aging_chart(kind: str, aging: dict[str, Any]) -> dict[str, Any]:
     return {
         "type": "doughnut",
         "id": kind,
-        "data": [
-            {"label": label, "value": _json_ready(aging.get(label))}
-            for label in BUCKETS
-        ],
+        "data": [{"label": label, "value": _json_ready(aging.get(label))} for label in BUCKETS],
+    }
+
+
+def _party_row(row: Any) -> dict[str, Any]:
+    return {
+        "code": row.code,
+        "name": row.name,
+        "outstanding": _json_ready(row.outstanding),
+        "overdue_90": _json_ready(row.overdue_90),
+        "unaged": _json_ready(row.unaged),
+        "oldest_days": row.oldest_days,
+        "share": _json_ready(row.share),
+    }
+
+
+def _parties_payload(snap: MisSnapshot) -> dict[str, Any]:
+    from ssdv.cash.parties import PARTIES_METHOD
+
+    return {
+        "method": PARTIES_METHOD,
+        "customer_rank": snap.customer_rank,
+        "overdue_customers": [_party_row(row) for row in snap.overdue_customers],
+        "vendor_exposure": [_party_row(row) for row in snap.vendor_exposure],
     }
 
 
@@ -299,6 +320,14 @@ def render_pack(
         for item in build_insights(snap):
             lines.append(f"  [{item.surface}] {item.text}")
         lines.append("")
+        if snap.overdue_customers:
+            lines.append("  Top overdue customers")
+            for row in snap.overdue_customers:
+                days = f"{row.oldest_days} d" if row.oldest_days is not None else "unaged"
+                lines.append(
+                    f"  {row.name:<28} 90+ {row.overdue_90:>14,.2f}  AR {row.outstanding:>14,.2f}  {days}"
+                )
+            lines.append("")
     for tile in pack.tiles:
         lines.append(f"  {tile.label:<28} {tile.value:>20}")
     if pack.scorecard:
@@ -316,6 +345,20 @@ def render_pack(
         for row in build_benchmarks(snap, peer):
             lines.append(
                 f"  {row.name:<28} {row.actual:>12}  {row.policy_status:<8}  {row.vs_peer}"
+            )
+    if pack.id in {"cfo", "board"} and (snap.overdue_customers or snap.vendor_exposure):
+        lines.append("")
+        lines.append("  Top overdue customers")
+        for row in snap.overdue_customers:
+            days = f"{row.oldest_days} d" if row.oldest_days is not None else "unaged"
+            lines.append(
+                f"  {row.name:<28} 90+ {row.overdue_90:>14,.2f}  AR {row.outstanding:>14,.2f}  {days}"
+            )
+        lines.append("  Top vendor exposure")
+        for row in snap.vendor_exposure:
+            days = f"{row.oldest_days} d" if row.oldest_days is not None else "unaged"
+            lines.append(
+                f"  {row.name:<28} AP {row.outstanding:>14,.2f}  90+ {row.overdue_90:>14,.2f}  {days}"
             )
     lines.append("")
     lines.extend(pack.notes)

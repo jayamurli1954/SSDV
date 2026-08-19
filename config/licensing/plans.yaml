@@ -1,0 +1,135 @@
+# OfficeMitra plan definitions — keep in sync with docs/PRICING.md
+
+plans:
+  starter:
+    name: Starter
+    company_limit: 1
+    price_inr: 3999
+    amc_inr: 1299
+    features:
+      ceo_pack: true
+      cfo_pack: false
+      board_pack: false
+      chart_pack: false
+      connect_csv: true
+      connect_tally_xml: false
+      connect_tally_http: false
+      whatif: false
+      parties_intel: false
+      benchmarks: false
+      dupont_roe: false
+      msme_43bh: false
+      gstr2b_recon: false
+      export_excel_ppt: false
+      ask_why: false
+
+  professional:
+    name: Professional
+    company_limit: 1
+    price_inr: 6999
+    price_inr_list: 9999
+    amc_inr: 2999
+    features:
+      ceo_pack: true
+      cfo_pack: true
+      board_pack: true
+      chart_pack: true
+      connect_csv: true
+      connect_tally_xml: true
+      connect_tally_http: false
+      whatif: true
+      parties_intel: true
+      benchmarks: true
+      dupont_roe: true
+      msme_43bh: true
+      gstr2b_recon: false
+      export_excel_ppt: true
+      ask_why: false
+
+  enterprise:
+    name: Enterprise
+    company_limit: 5
+    price_inr: 9999
+    amc_inr: 4999
+    features:
+      ceo_pack: true
+      cfo_pack: true
+      board_pack: true
+      chart_pack: true
+      connect_csv: true
+      connect_tally_xml: true
+      connect_tally_http: true
+      whatif: true
+      parties_intel: true
+      benchmarks: true
+      dupont_roe: true
+      msme_43bh: true
+      gstr2b_recon: true
+      export_excel_ppt: true
+      ask_why: false
+
+  ca_5:
+    name: CA Pack (5 clients)
+    company_limit: 5
+    price_inr: 12999
+    amc_inr: 4999
+    features:
+      ceo_pack: true
+      cfo_pack: true
+      board_pack: true
+      chart_pack: true
+      connect_csv: true
+      connect_tally_xml: true
+      connect_tally_http: true
+      whatif: true
+      parties_intel: true
+      benchmarks: true
+      dupont_roe: true
+      msme_43bh: true
+      gstr2b_recon: true
+      export_excel_ppt: true
+      ask_why: true
+
+  ca_20:
+    name: CA Pack (20 clients)
+    company_limit: 20
+    price_inr: 15999
+    amc_inr: 6999
+    features:
+      ceo_pack: true
+      cfo_pack: true
+      board_pack: true
+      chart_pack: true
+      connect_csv: true
+      connect_tally_xml: true
+      connect_tally_http: true
+      whatif: true
+      parties_intel: true
+      benchmarks: true
+      dupont_roe: true
+      msme_43bh: true
+      gstr2b_recon: true
+      export_excel_ppt: true
+      ask_why: true
+
+  ca_50:
+    name: CA Pack (50 clients)
+    company_limit: 50
+    price_inr: 39999
+    amc_inr: 9999
+    features:
+      ceo_pack: true
+      cfo_pack: true
+      board_pack: true
+      chart_pack: true
+      connect_csv: true
+      connect_tally_xml: true
+      connect_tally_http: true
+      whatif: true
+      parties_intel: true
+      benchmarks: true
+      dupont_roe: true
+      msme_43bh: true
+      gstr2b_recon: true
+      export_excel_ppt: true
+      ask_why: true

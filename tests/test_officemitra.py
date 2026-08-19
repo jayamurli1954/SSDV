@@ -72,10 +72,13 @@ def test_insights_are_in_line_on_pnl_and_aging(session) -> None:
     assert payload["insights"]
     assert payload["red_flags"] == []
     assert payload["why_prompts"]
+    assert payload["parties"]["overdue_customers"][0]["name"] == "CUST-B"
     html = render_dashboard(payload)
     assert "OfficeMitra" in html
     assert "Sample Traders Pvt Ltd" in html
     assert "AR aging" in html
+    assert "Top overdue customers" in html
+    assert "CUST-B" in html
     assert "Board red flags" in html
     assert "Cash forecast" in html
     assert payload["benchmarks"]
@@ -279,10 +282,13 @@ def test_board_pack_html_and_pdf_from_payload(session) -> None:
     assert "OfficeMitra Board pack" in html
     assert "Sample Traders Pvt Ltd" in html
     assert "Red flags" in html
+    assert "Top overdue customers" in html
+    assert "Top vendor exposure" in html
     pdf = render_board_pdf(payload)
     assert pdf.startswith(b"%PDF-1.4")
     assert b"What-if" in pdf
     assert b"Benchmarks" in pdf
+    assert b"Top overdue customers" in pdf
 
 
 def test_dashboard_parser() -> None:

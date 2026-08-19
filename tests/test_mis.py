@@ -114,6 +114,9 @@ def test_mis_json_and_packs(session) -> None:
     assert payload["benchmarks"]
     assert "Not a surveyed industry average" in payload["benchmark_source"]
     assert payload["whatif"]
+    assert payload["parties"]["overdue_customers"]
+    assert payload["parties"]["overdue_customers"][0]["outstanding"]
+    assert payload["parties"]["vendor_exposure"]
     assert len(payload["whatif"]) == 4
     ceo = next(p for p in payload["packs"] if p["id"] == "ceo")
     assert {t["id"] for t in ceo["tiles"]} >= {
@@ -137,12 +140,19 @@ def test_mis_json_and_packs(session) -> None:
     assert dumps_snapshot(snap, "ceo")
     text = render_mis(snap, "ceo")
     assert "CEO pack" in text
+    assert "Top overdue customers" in text
     assert snap.company_name in text
     board_text = render_mis(snap, "board")
     assert "Benchmarks" in board_text
     assert "SSDV policy" in board_text
     cfo = next(p for p in payload["packs"] if p["id"] == "cfo")
-    assert {t["id"] for t in cfo["tiles"]} >= {"cash_30", "cash_60", "cash_90", "gst_input", "gst_output"}
+    assert {t["id"] for t in cfo["tiles"]} >= {
+        "cash_30",
+        "cash_60",
+        "cash_90",
+        "gst_input",
+        "gst_output",
+    }
 
 
 def test_concentration_scorecard_breach(session) -> None:

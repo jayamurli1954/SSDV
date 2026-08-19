@@ -13,6 +13,7 @@ from ssdv.gl import AR_CONTROL, COGS, INVENTORY, OUTPUT_CGST, OUTPUT_IGST, OUTPU
 from ssdv.gst import gst_split, is_interstate
 from ssdv.inventory.stock import record_stock_move, stock_quantity, stock_value
 from ssdv.models import (
+    Branch,
     Customer,
     Product,
     SalesInvoice,
@@ -52,10 +53,15 @@ def post_sale(
         raise ValueError("A sales invoice needs at least one line")
 
     cfg = company or load_company()
-    home_state = str(cfg["accounting"]["home_state_code"])
+    default_home_state = str(cfg["accounting"]["home_state_code"])
     if customer.state_code is None:
         raise ValueError(f"Customer {customer.code} has no state")
-    interstate = is_interstate(customer.state_code, home_state)
+    supplier_state = default_home_state
+    if warehouse.branch_code:
+        branch = session.get(Branch, warehouse.branch_code)
+        if branch is not None and branch.state_code:
+            supplier_state = str(branch.state_code)
+    interstate = is_interstate(customer.state_code, supplier_state)
     fy = fy_code(invoice_date)
     seq = _next_doc_no(session, fy)
     invoice_no = f"SAL/{fy}/{seq:06d}"
@@ -169,7 +175,9 @@ def post_sale(
     session.add(invoice)
     session.flush()
 
-    for line_no, (raw, amount, cgst, sgst, igst, cogs_rate, cogs_value) in enumerate(drafted, start=1):
+    for line_no, (raw, amount, cgst, sgst, igst, cogs_rate, cogs_value) in enumerate(
+        drafted, start=1
+    ):
         invoice.lines.append(
             SalesInvoiceLine(
                 line_no=line_no,

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import html
-import tempfile
 from datetime import date
 from pathlib import Path
 
@@ -10,10 +9,9 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from ssdv.ask import AskError, ask_books
-from ssdv.connectors import ConnectorError, ConnectorNotReady, list_connectors, load_into_vault
 from ssdv.db import create_schema, make_engine, session_scope
-from ssdv.ingest import IngestError
 from ssdv.mis import mis_snapshot, snapshot_payload
+from ssdv.officemitra.boardpack import render_board_pdf
 from ssdv.officemitra.charts import (
     aging_points,
     cash_forecast_points,
@@ -25,9 +23,10 @@ from ssdv.officemitra.charts import (
     pnl_mix_points,
     scorecard_points,
 )
-from ssdv.officemitra.boardpack import render_board_pdf
 from ssdv.officemitra.dashboard import render_dashboard
-from ssdv.paths import connect_db_path, default_db_path, repo_root
+from ssdv.officemitra.setup_flow import vault_has_data
+from ssdv.officemitra.setup_wizard import render_setup_wizard
+from ssdv.paths import default_db_path, repo_root
 
 st.set_page_config(page_title="OfficeMitra", layout="wide", initial_sidebar_state="expanded")
 
@@ -227,6 +226,69 @@ def _metrics(tiles: list[dict]) -> None:
     st.markdown(f'<div class="om-tiles">{"".join(cards)}</div>', unsafe_allow_html=True)
 
 
+def _render_parties(payload: dict, *, vendors: bool = True, limit: int | None = None) -> None:
+    parties = payload.get("parties") or {}
+    method = str(parties.get("method") or "")
+    customers = list(parties.get("overdue_customers") or [])
+    vendors_rows = list(parties.get("vendor_exposure") or [])
+    if limit is not None:
+        customers = customers[:limit]
+        vendors_rows = vendors_rows[:limit]
+    if not customers and not vendors_rows:
+        return
+    st.markdown("##### Customer & vendor intelligence")
+    if method:
+        st.caption(method)
+    rank = str(parties.get("customer_rank") or "")
+    cust_title = (
+        "Top overdue customers" if rank == "overdue_90" else "Top AR balances (no 90+ aging)"
+    )
+    cols = st.columns(2 if vendors else 1, gap="large")
+    with cols[0]:
+        st.markdown(f"**{cust_title}**")
+        if customers:
+            st.dataframe(
+                [
+                    {
+                        "Customer": row.get("name"),
+                        "AR 90+": row.get("overdue_90"),
+                        "Outstanding": row.get("outstanding"),
+                        "Unaged": row.get("unaged"),
+                        "Oldest days": row.get("oldest_days")
+                        if row.get("oldest_days") is not None
+                        else "unaged",
+                    }
+                    for row in customers
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            st.write("No open customer balances.")
+    if vendors:
+        with cols[-1]:
+            st.markdown("**Top vendor exposure**")
+            if vendors_rows:
+                st.dataframe(
+                    [
+                        {
+                            "Vendor": row.get("name"),
+                            "Outstanding": row.get("outstanding"),
+                            "AP 90+": row.get("overdue_90"),
+                            "Unaged": row.get("unaged"),
+                            "Oldest days": row.get("oldest_days")
+                            if row.get("oldest_days") is not None
+                            else "unaged",
+                        }
+                        for row in vendors_rows
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.write("No open vendor balances.")
+
+
 def _render_benchmarks(payload: dict) -> None:
     st.markdown("##### Benchmarks")
     source = str(payload.get("benchmark_source") or "")
@@ -298,7 +360,9 @@ def _altair():
     return alt, pd
 
 
-def _multi_line(payload: dict, series: list[tuple[str, str]], title: str, *, area: bool = False) -> None:
+def _multi_line(
+    payload: dict, series: list[tuple[str, str]], title: str, *, area: bool = False
+) -> None:
     try:
         alt, pd = _altair()
     except ImportError:
@@ -451,82 +515,22 @@ def _scorecard_chart(payload: dict) -> None:
         st.dataframe(points, use_container_width=True, hide_index=True)
 
 
-def _write_upload(upload, suffix: str) -> Path:
-    folder = Path(tempfile.mkdtemp(prefix="ssdv_connect_"))
-    path = folder / f"export{suffix}"
-    path.write_bytes(upload.getvalue())
-    return path
-
-
-def _render_connect() -> None:
-    st.markdown('<div class="om-kicker">Read-only extract</div>', unsafe_allow_html=True)
-    st.subheader("Connect another application")
-    st.write(
-        "SSDV never writes back to Tally, Zoho, Busy, or MitraBooks. "
-        "Export a journal / day book to CSV, map ledgers to SSDV account codes, "
-        "then KPI packs and AI notes run on posted books."
-    )
-    rows = [
-        {
-            "id": item.id,
-            "title": item.title,
-            "status": item.status,
-            "how": item.hint,
-        }
-        for item in list_connectors()
-    ]
-    st.dataframe(rows, use_container_width=True, hide_index=True)
-
-    journals = st.file_uploader(
-        "Journal CSV",
-        type=["csv"],
-        help="voucher_id, date, voucher_type, account, debit, credit",
-    )
-    mapping = st.file_uploader("Ledger map (optional)", type=["csv", "yml", "yaml"])
-    name = st.text_input("Company name", value="")
-    replace = st.checkbox("Replace books already in the connect vault", value=False)
-    if st.button("Extract and post into SSDV", type="primary"):
-        if journals is None:
-            st.error("Upload a journal CSV first. Sample shape: examples/generic_ingest/journals.csv")
-            return
-        journal_path = _write_upload(journals, ".csv")
-        map_path = None
-        if mapping is not None:
-            suffix = Path(str(mapping.name)).suffix.lower() or ".csv"
-            map_path = _write_upload(mapping, suffix)
-        db_path = connect_db_path()
-        try:
-            result = load_into_vault(
-                db_path,
-                source="generic",
-                journals=journal_path,
-                account_map=map_path,
-                company_name=name or None,
-                force=replace,
-            )
-        except ConnectorNotReady as exc:
-            st.error(str(exc))
-            return
-        except ConnectorError as exc:
-            st.error(str(exc))
-            return
-        except IngestError as exc:
-            st.error(str(exc))
-            return
-        st.session_state["pending_vault"] = str(db_path)
-        st.session_state["pending_screen"] = "CEO"
-        st.cache_data.clear()
-        st.rerun()
+def _should_show_setup() -> bool:
+    if st.session_state.get("show_setup"):
+        return True
+    if st.session_state.get("setup_complete"):
+        return False
+    return not vault_has_data()
 
 
 def _render_ceo(payload: dict, db_path: str, as_of: date) -> None:
-    st.markdown('<div class="om-kicker">OfficeMitra notes</div>', unsafe_allow_html=True)
+    st.markdown('<div class="om-kicker">CEO pack</div>', unsafe_allow_html=True)
     for item in payload.get("insights") or []:
         if item.get("surface") == "why":
             continue
         _note(str(item.get("tone") or "neutral"), str(item.get("text") or ""))
-    st.markdown("##### CEO pack")
     _metrics(pack_tiles(payload, "ceo"))
+    _render_parties(payload, vendors=False)
     _render_benchmarks(payload)
     _render_whatif(payload)
     left, right = st.columns(2, gap="large")
@@ -572,7 +576,7 @@ def _render_ceo(payload: dict, db_path: str, as_of: date) -> None:
 
 
 def _render_cfo(payload: dict) -> None:
-    st.markdown('<div class="om-kicker">Cash and aging</div>', unsafe_allow_html=True)
+    st.markdown('<div class="om-kicker">CFO pack</div>', unsafe_allow_html=True)
     _metrics(pack_tiles(payload, "cfo"))
     st.markdown("##### Cash forecast (open AR/AP, no sales plan)")
     fc = payload.get("cash_forecast") or {}
@@ -598,7 +602,10 @@ def _render_cfo(payload: dict) -> None:
             hide_index=True,
         )
     if fc.get("blocked_ar") not in (None, "", "0.00"):
-        _note("warning", f"Unscheduled AR {_inr_text(fc.get('blocked_ar'))} is not in the 30/60/90 timing.")
+        _note(
+            "warning",
+            f"Unscheduled AR {_inr_text(fc.get('blocked_ar'))} is not in the 30/60/90 timing.",
+        )
     left, right = st.columns(2, gap="large")
     with left:
         _donut(aging_points(payload, "ar_aging"), "AR aging")
@@ -609,6 +616,7 @@ def _render_cfo(payload: dict) -> None:
         _bars(aging_points(payload, "ar_aging"), "AR aging (bars)")
     with right:
         _bars(aging_points(payload, "ap_aging"), "AP aging (bars)")
+    _render_parties(payload)
     left, right = st.columns(2, gap="large")
     with left:
         _multi_line(
@@ -694,10 +702,11 @@ def _render_board(payload: dict) -> None:
         st.write("")
         st.dataframe(rows, use_container_width=True, hide_index=True)
     _render_benchmarks(payload)
+    _render_parties(payload, limit=5)
 
 
 def _render_charts(payload: dict) -> None:
-    st.markdown('<div class="om-kicker">From posted journals</div>', unsafe_allow_html=True)
+    st.markdown('<div class="om-kicker">Chart pack</div>', unsafe_allow_html=True)
     left, right = st.columns(2, gap="large")
     with left:
         _multi_line(
@@ -793,7 +802,22 @@ def main() -> None:
         if st.button("Use ABC year-end 31 Mar 2026"):
             st.session_state.pending_as_of = date(2026, 3, 31)
             st.rerun()
-        st.radio("Screen", ["CEO", "CFO", "Board", "Charts", "Connect"], key="screen")
+        st.radio(
+            "Screen",
+            ["CEO", "CFO", "Board", "Charts", "Connect"],
+            format_func=lambda s: {
+                "CEO": "CEO pack",
+                "CFO": "CFO pack",
+                "Board": "Board pack",
+                "Charts": "Chart pack",
+                "Connect": "Change data source",
+            }.get(s, s),
+            key="screen",
+        )
+        if st.button("Change data source"):
+            st.session_state["show_setup"] = True
+            st.session_state.pop("setup_complete", None)
+            st.rerun()
         st.write("Unbalanced books never get a chart. Same facts as `ssdv mis --json`.")
         with st.expander("Full-page screenshot"):
             st.write(
@@ -805,17 +829,21 @@ def main() -> None:
     _unlock_full_page()
 
     screen = str(st.session_state.get("screen") or "CEO")
+
+    if _should_show_setup() or screen == "Connect":
+        if screen == "Connect":
+            st.session_state["show_setup"] = True
+        render_setup_wizard()
+        return
+
     st.title("OfficeMitra")
     st.write(
         "Read-only KPIs and AI notes from posted journals. "
         "Not a live login to Tally, Zoho, Busy, or MitraBooks."
     )
 
-    if screen == "Connect":
-        _render_connect()
-        return
     if not Path(db_path).exists():
-        st.error("No SQLite vault at that path. Open Connect, or run ssdv init / ssdv connect.")
+        st.error("No books loaded yet. Use **Change data source** in the sidebar to import.")
         return
     payload = _payload(db_path, as_of.isoformat())
     if as_of > date(2026, 3, 31):

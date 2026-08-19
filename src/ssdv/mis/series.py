@@ -127,7 +127,9 @@ def monthly_activity(session: Session, start: date, end: date) -> MonthlySeries:
     )
     receipts = _align(
         categories,
-        _account_by_month(session, AR_CONTROL, start, end, (VoucherType.RECEIPT.value,), negate=True),
+        _account_by_month(
+            session, AR_CONTROL, start, end, (VoucherType.RECEIPT.value,), negate=True
+        ),
     )
     payments = _align(
         categories,

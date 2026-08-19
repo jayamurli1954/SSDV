@@ -12,6 +12,7 @@ from ssdv.accounting.equation import EquationSnapshot, accounting_equation
 from ssdv.accounting.trial_balance import ledger_balance, trial_balance
 from ssdv.cash.aging import aging_totals, ap_aging, ar_aging
 from ssdv.cash.banks import current_bank_balances
+from ssdv.cash.parties import PartyExposure, customer_vendor_tops
 from ssdv.fy import fy_code, fy_start
 from ssdv.gl import (
     AP_CONTROL,
@@ -42,7 +43,6 @@ from ssdv.money import ZERO, money
 from ssdv.paths import load_company
 from ssdv.scenarios.metrics import ScenarioMetrics, scenario_metrics, signal_holds
 from ssdv.scenarios.spec import GOLDEN, apply_scenario
-
 
 _CURRENT_ASSET_SUBTYPES = frozenset({"cash", "bank", "debtor", "inventory", "gst_input", "other"})
 _CURRENT_LIABILITY_SUBTYPES = frozenset({"creditor", "gst_output", "other"})
@@ -218,6 +218,9 @@ class MisSnapshot:
     ccc: int | None
     ar_aging: dict[str, Decimal]
     ap_aging: dict[str, Decimal]
+    overdue_customers: tuple[PartyExposure, ...]
+    customer_rank: str
+    vendor_exposure: tuple[PartyExposure, ...]
     metrics: ScenarioMetrics
     signal_ok: bool
     signal_detail: str
@@ -226,6 +229,7 @@ class MisSnapshot:
     current_liabilities: Decimal
     gst_input: Decimal
     gst_output: Decimal
+    msme_43bh_total: Decimal
 
     @property
     def gm_pct(self) -> Decimal:
@@ -375,6 +379,11 @@ def mis_snapshot(
     ok, detail = signal_holds(metrics, cfg)
     series = monthly_activity(session, books_start, as_of)
     current_assets, current_liabilities, gst_input, gst_output = _current_position(session, as_of)
+    overdue_customers, customer_rank, vendor_exposure = customer_vendor_tops(session, as_of)
+    # 43B(h) analysis: MSME-related overdue payables risk.
+    from ssdv.forensics.msme_43bh import msme_43bh_risk
+
+    msme_total, _msme_top = msme_43bh_risk(session, as_of)
     return MisSnapshot(
         as_of=as_of,
         scenario_id=sid,
@@ -404,6 +413,9 @@ def mis_snapshot(
         ccc=ccc,
         ar_aging=aging_totals(ar_aging(session, as_of)),
         ap_aging=aging_totals(ap_aging(session, as_of)),
+        overdue_customers=overdue_customers,
+        customer_rank=customer_rank,
+        vendor_exposure=vendor_exposure,
         metrics=metrics,
         signal_ok=ok,
         signal_detail=detail,
@@ -412,4 +424,5 @@ def mis_snapshot(
         current_liabilities=current_liabilities,
         gst_input=gst_input,
         gst_output=gst_output,
+        msme_43bh_total=msme_total,
     )

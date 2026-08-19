@@ -4,14 +4,14 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from ssdv.accounting.opening import bootstrap_books
-from ssdv.models import PurchaseBillLine, Product
+from ssdv.cash.generate import generate_settlements
+from ssdv.models import Product, PurchaseBillLine
 from ssdv.money import money
+from ssdv.paths import load_company
 from ssdv.purchases.generate import generate_purchases
 from ssdv.sales.generate import generate_sales
 from ssdv.scenarios import apply_scenario, record_scenario, scenario_metrics, signal_holds
 from ssdv.scenarios.spec import GOLDEN
-from ssdv.paths import load_company
-from ssdv.cash.generate import generate_settlements
 from ssdv.validate import run_gates
 
 

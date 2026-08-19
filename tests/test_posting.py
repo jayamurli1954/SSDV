@@ -7,7 +7,9 @@ from ssdv.models import VoucherType
 from ssdv.money import money
 
 
-def _sale_like(debit: str = "11800.00", credit_sales: str = "10000.00", credit_gst: str = "1800.00") -> PostingRequest:
+def _sale_like(
+    debit: str = "11800.00", credit_sales: str = "10000.00", credit_gst: str = "1800.00"
+) -> PostingRequest:
     return PostingRequest(
         voucher_date=date(2023, 4, 3),
         voucher_type=VoucherType.SALE,

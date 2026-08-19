@@ -242,8 +242,16 @@ def build_benchmarks(
 
 def load_baseline_peer(as_of: date, *, exclude: Path | None = None) -> MisSnapshot | None:
     """Read ABC generated baseline. Returns None if missing, not baseline, or same file."""
-    from ssdv.db import create_schema, make_engine, session_scope
+    from sqlalchemy.exc import OperationalError
+
+    from ssdv.accounting.opening import bootstrap_books
+    from ssdv.cash.generate import generate_settlements
+    from ssdv.db import create_schema, drop_schema, make_engine, session_scope
     from ssdv.mis.kpis import mis_snapshot
+    from ssdv.period import generate_books
+    from ssdv.purchases.generate import generate_purchases
+    from ssdv.sales.generate import generate_sales
+    from ssdv.scenarios import apply_scenario, record_scenario
 
     path = default_db_path()
     if not path.exists():
@@ -255,8 +263,29 @@ def load_baseline_peer(as_of: date, *, exclude: Path | None = None) -> MisSnapsh
     peer_as_of = min(as_of, books_end)
     engine = make_engine(path)
     create_schema(engine)
-    with session_scope(engine) as session:
-        snap = mis_snapshot(session, peer_as_of)
+    try:
+        with session_scope(engine) as session:
+            snap = mis_snapshot(session, peer_as_of)
+    except OperationalError as exc:
+        # Backward-compat: baseline vault may have been created with an older
+        # schema (e.g., missing MSME columns). Rebuild the baseline vault so
+        # dashboards remain functional.
+        if "no such column" not in str(exc).lower():
+            raise
+
+        cfg = apply_scenario(load_company(), "baseline")
+        with session_scope(engine) as session:
+            drop_schema(engine)
+            create_schema(engine)
+            bootstrap_books(session, company=cfg)
+            generate_purchases(session, company=cfg)
+            generate_sales(session, company=cfg)
+            generate_settlements(session, company=cfg)
+            generate_books(session, company=cfg)
+            record_scenario(session, cfg)
+
+        with session_scope(engine) as session:
+            snap = mis_snapshot(session, peer_as_of)
     if snap.scenario_id != "baseline":
         return None
     if snap.fy.sales <= ZERO:

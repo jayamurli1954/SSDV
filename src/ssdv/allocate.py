@@ -5,7 +5,9 @@ from decimal import Decimal
 from ssdv.money import ZERO, money
 
 
-def allocate_total(weights: list[float] | list[int] | list[Decimal], total: Decimal) -> list[Decimal]:
+def allocate_total(
+    weights: list[float] | list[int] | list[Decimal], total: Decimal
+) -> list[Decimal]:
     """Split `total` across weights so the parts sum exactly to `total`."""
     if not weights:
         raise ValueError("weights must be non-empty")

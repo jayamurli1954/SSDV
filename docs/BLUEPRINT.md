@@ -1,6 +1,6 @@
-# SSDV v1 blueprint (locked)
+# SSDV blueprint (v1 baseline + Enterprise roadmap)
 
-Status: frozen for ABC Industrial Supplies Pvt Ltd. Change only by revising this file and `config/companies/abc_industrial.yaml` together.
+Status: v1 baseline is documented below. Enterprise roadmap (Phase 5/6) is appended for production hardening and statutory expansion.
 
 ## Company
 
@@ -95,3 +95,49 @@ Scenarios write to `data/ssdv_<scenario>.sqlite` so the baseline vault is left i
 ## Out of v1
 
 FastAPI, Streamlit, PostgreSQL, Power BI, manufacturing/retail/temple/society datasets, e-invoice, e-way bill, PF/ESI, CRM conversion KPIs.
+
+## Enterprise Roadmap (Phases 5 & 6)
+
+Recommended next-level enhancements for production deployments, CA firms, and multi-entity enterprises.
+
+```mermaid
+flowchart LR
+    P4["Phase 4 (done)\nMulti-State GST + core hardening"] --> P5["Phase 5: Forensic Accounting & Statutory Compliance"]
+    P5 --> P6["Phase 6: Enterprise Live-Sync & Production Hardening"]
+```
+
+### Phase 5: Forensic Accounting & Statutory Compliance
+
+1. **Section 43B(h) MSME Overdue Analyzer**
+   - party-level MSME classification tags (Micro, Small, Medium)
+   - automated 43B(h) disallowance risk report in the CFO pack
+2. **GSTR-2B vs. Inward ITC Reconciliation**
+   - ingest monthly GSTR-2B JSON/CSV
+   - reconcile inward purchase vouchers with tolerance matching on invoice no/date/GST amount
+   - flag uncredited ITC, missing vendor invoices, and ineligible credits
+3. **Schedule III Financial Statement Generator**
+   - standardized Balance Sheet and P&L grouping into Ind AS Schedule III
+   - automated note numbering
+4. **DuPont Diagnostic Engine**
+   - deconstruct ROE into:
+     - Profit Margin
+     - Asset Turnover
+     - Financial Leverage
+   - executive “driver tree” explanations
+
+### Phase 6: Enterprise Live-Sync & Production Hardening
+
+1. **Direct TallyPrime HTTP Listener**
+   - connect to Tally’s local XML HTTP port (e.g. `http://localhost:9000`)
+   - extract DayBook and Master vouchers on demand (no manual CSV/XML exports)
+2. **Database Engine Switch (PostgreSQL / ClickHouse)**
+   - SQLAlchemy URL configuration support:
+     - `postgresql+psycopg2://...`
+   - motivations: multi-user concurrency and higher transaction volumes
+3. **Multi-Entity Group Consolidation**
+   - load multiple company vaults (holding + subsidiaries)
+   - inter-company elimination vouchers
+   - consolidated Group MIS packs
+4. **Automated Scheduled Dispatch**
+   - background worker to compile Board Pack PDFs and Excel workbooks at month-end
+   - dispatch via SMTP or secure webhook

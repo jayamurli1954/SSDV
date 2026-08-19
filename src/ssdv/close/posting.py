@@ -17,10 +17,12 @@ from ssdv.paths import load_company
 def _has_voucher(session: Session, voucher_type: str, fy: str) -> bool:
     return (
         session.scalar(
-            select(Voucher.id).where(
+            select(Voucher.id)
+            .where(
                 Voucher.voucher_type == voucher_type,
                 Voucher.fy_code == fy,
-            ).limit(1)
+            )
+            .limit(1)
         )
         is not None
     )
@@ -42,8 +44,7 @@ def post_depreciation(
     nbv = money(gross - accum)
     rate = money(cfg["accounting"]["furniture_slm_pct"]) / money("100")
     amount = money(gross * rate)
-    if amount > nbv:
-        amount = nbv
+    amount = min(amount, nbv)
     if amount <= ZERO:
         return None
     return post(
@@ -93,9 +94,13 @@ def post_closing(
     lines: list[LineDraft] = []
     lines.extend(income_lines)
     if income_total > ZERO:
-        lines.append(LineDraft(account_code=PL_ACCOUNT, credit=income_total, line_narration="close income"))
+        lines.append(
+            LineDraft(account_code=PL_ACCOUNT, credit=income_total, line_narration="close income")
+        )
     if expense_total > ZERO:
-        lines.append(LineDraft(account_code=PL_ACCOUNT, debit=expense_total, line_narration="close expenses"))
+        lines.append(
+            LineDraft(account_code=PL_ACCOUNT, debit=expense_total, line_narration="close expenses")
+        )
     lines.extend(expense_lines)
     if len(lines) < 2:
         return None

@@ -45,14 +45,14 @@ def _aging_amount(aging: dict[str, Decimal], key: str) -> Decimal:
 def _unaged(gl_balance: Decimal, aging: dict[str, Decimal]) -> Decimal:
     aged = money(aging.get("total", ZERO))
     gap = money(gl_balance - aged)
-    return gap if gap > ZERO else ZERO
+    return max(ZERO, gap)
 
 
 def cash_forecast(snap: MisSnapshot) -> CashForecast:
     """30/60/90 cash from posted AR/AP buckets. Not a sales plan."""
     cash = money(snap.cash)
-    gst_due = snap.gst_net if snap.gst_net > ZERO else ZERO
-    salary = snap.salary_payable if snap.salary_payable > ZERO else ZERO
+    gst_due = max(ZERO, snap.gst_net)
+    salary = max(ZERO, snap.salary_payable)
     unaged_ap = _unaged(snap.ap, snap.ap_aging)
     running = cash
     rows: list[CashHorizon] = []

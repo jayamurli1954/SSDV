@@ -85,9 +85,7 @@ def run_gates(session: Session, as_of: date, company: dict | None = None) -> lis
 
     rows = trial_balance(session, as_of)
     debit, credit = tb_totals(rows)
-    gates.append(
-        Gate("trial_balance", debit == credit, f"debit {debit} credit {credit}")
-    )
+    gates.append(Gate("trial_balance", debit == credit, f"debit {debit} credit {credit}"))
 
     snap = accounting_equation(session, as_of)
     gates.append(Gate("accounting_equation", snap.holds, f"delta {snap.delta}"))
@@ -122,9 +120,7 @@ def run_gates(session: Session, as_of: date, company: dict | None = None) -> lis
 
     inv_gl = ledger_balance(session, INVENTORY, as_of)
     inv_stock = stock_value(session, as_of)
-    gates.append(
-        Gate("inventory_value", inv_stock == inv_gl, f"stock {inv_stock} gl {inv_gl}")
-    )
+    gates.append(Gate("inventory_value", inv_stock == inv_gl, f"stock {inv_stock} gl {inv_gl}"))
     gates.append(
         Gate(
             "no_negative_stock",
@@ -171,28 +167,37 @@ def run_gates(session: Session, as_of: date, company: dict | None = None) -> lis
     )
     cgst_bills = money(
         session.scalar(
-            select(func.coalesce(func.sum(PurchaseBill.cgst), 0)).where(PurchaseBill.bill_date <= as_of)
+            select(func.coalesce(func.sum(PurchaseBill.cgst), 0)).where(
+                PurchaseBill.bill_date <= as_of
+            )
         )
         or 0
     )
     sgst_bills = money(
         session.scalar(
-            select(func.coalesce(func.sum(PurchaseBill.sgst), 0)).where(PurchaseBill.bill_date <= as_of)
+            select(func.coalesce(func.sum(PurchaseBill.sgst), 0)).where(
+                PurchaseBill.bill_date <= as_of
+            )
         )
         or 0
     )
     igst_bills = money(
         session.scalar(
-            select(func.coalesce(func.sum(PurchaseBill.igst), 0)).where(PurchaseBill.bill_date <= as_of)
+            select(func.coalesce(func.sum(PurchaseBill.igst), 0)).where(
+                PurchaseBill.bill_date <= as_of
+            )
         )
         or 0
     )
     gates.append(
         Gate(
             "input_gst",
-            cgst_bills == voucher_account_net(session, INPUT_CGST, as_of, (VoucherType.PURCHASE.value,))
-            and sgst_bills == voucher_account_net(session, INPUT_SGST, as_of, (VoucherType.PURCHASE.value,))
-            and igst_bills == voucher_account_net(session, INPUT_IGST, as_of, (VoucherType.PURCHASE.value,)),
+            cgst_bills
+            == voucher_account_net(session, INPUT_CGST, as_of, (VoucherType.PURCHASE.value,))
+            and sgst_bills
+            == voucher_account_net(session, INPUT_SGST, as_of, (VoucherType.PURCHASE.value,))
+            and igst_bills
+            == voucher_account_net(session, INPUT_IGST, as_of, (VoucherType.PURCHASE.value,)),
             f"bills cgst {cgst_bills} sgst {sgst_bills} igst {igst_bills} count {bill_count}",
         )
     )
@@ -268,7 +273,8 @@ def run_gates(session: Session, as_of: date, company: dict | None = None) -> lis
     gates.append(
         Gate(
             "sales_and_cogs",
-            taxable_sales == money(-voucher_account_net(session, SALES, as_of, (VoucherType.SALE.value,)))
+            taxable_sales
+            == money(-voucher_account_net(session, SALES, as_of, (VoucherType.SALE.value,)))
             and cogs_sales == voucher_account_net(session, COGS, as_of, (VoucherType.SALE.value,)),
             f"taxable {taxable_sales} cogs {cogs_sales}",
         )
@@ -409,9 +415,9 @@ def run_gates(session: Session, as_of: date, company: dict | None = None) -> lis
     )
     gst_payable_docs = money(
         session.scalar(
-            select(
-                func.coalesce(func.sum(GstSettlement.payable - GstSettlement.paid), 0)
-            ).where(GstSettlement.settlement_date <= as_of)
+            select(func.coalesce(func.sum(GstSettlement.payable - GstSettlement.paid), 0)).where(
+                GstSettlement.settlement_date <= as_of
+            )
         )
         or 0
     )
@@ -552,7 +558,9 @@ def run_gates(session: Session, as_of: date, company: dict | None = None) -> lis
         )
         accum = money(-ledger_balance(session, ACCUM_DEP_FURNITURE, as_of))
         gates.append(
-            Gate("depreciation", accum == expected_accum, f"accum {accum} expected {expected_accum}")
+            Gate(
+                "depreciation", accum == expected_accum, f"accum {accum} expected {expected_accum}"
+            )
         )
         pl_open = any(row.account_type in {"income", "expense"} for row in rows)
         closed_n = int(

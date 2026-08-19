@@ -13,8 +13,15 @@ _CONNECTORS: tuple[ConnectorInfo, ...] = (
     ConnectorInfo(
         "tally",
         "Tally / TallyPrime",
-        "export_csv",
-        "Native XML is not wired. Export vouchers to CSV and use --source generic.",
+        "ready",
+        "Native XML DayBook ingestion.",
+    ),
+    ConnectorInfo(
+        "tally-http",
+        "TallyPrime HTTP (live pull)",
+        "ready",
+        "Pull DayBook and Masters directly from a running TallyPrime instance "
+        "(port 9000). Use --host to override the URL.",
     ),
     ConnectorInfo(
         "zoho",

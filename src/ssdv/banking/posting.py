@@ -83,7 +83,9 @@ def post_emi(
     if bank_gl is None:
         if principal > ZERO:
             raise PostingError("Cannot reduce principal without a bank payment")
-        lines.append(LineDraft(account_code=EXPENSES_PAYABLE, credit=interest, line_narration=emi_no))
+        lines.append(
+            LineDraft(account_code=EXPENSES_PAYABLE, credit=interest, line_narration=emi_no)
+        )
     else:
         if principal > ZERO:
             lines.append(LineDraft(account_code=TERM_LOAN, debit=principal, line_narration=emi_no))

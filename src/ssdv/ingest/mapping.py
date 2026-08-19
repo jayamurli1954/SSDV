@@ -2,6 +2,23 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ssdv.gl import (
+    AP_CONTROL,
+    AR_CONTROL,
+    BANK_HDFC,
+    BANK_ICICI,
+    BANK_OD,
+    GST_PAYABLE,
+    INPUT_CGST,
+    INPUT_IGST,
+    INPUT_SGST,
+    INVENTORY,
+    OUTPUT_CGST,
+    OUTPUT_IGST,
+    OUTPUT_SGST,
+    RENT,
+    SALES,
+)
 from ssdv.ingest.errors import IngestError
 from ssdv.paths import load_yaml
 
@@ -81,7 +98,83 @@ def resolve_account(source: str, mapping: dict[str, str], known_codes: set[str])
         return raw
     mapped = mapping.get(raw) or mapping.get(raw.casefold())
     if mapped:
+        if mapped in known_codes:
+            return mapped
         return mapped
+    lowered = raw.casefold()
+    simplified = lowered.replace("&", "and")
+    heuristics: dict[str, str] = {
+        # Core AR/AP controls
+        "sundry debtor": AR_CONTROL,
+        "sundry debtors": AR_CONTROL,
+        "debtor": AR_CONTROL,
+        "debtors": AR_CONTROL,
+        "customer": AR_CONTROL,
+        "sundry creditor": AP_CONTROL,
+        "sundry creditors": AP_CONTROL,
+        "creditor": AP_CONTROL,
+        "creditors": AP_CONTROL,
+        "supplier": AP_CONTROL,
+        "vendor": AP_CONTROL,
+        # Sales / purchases / simple expenses
+        "sales": SALES,
+        "sales account": SALES,
+        "purchase": INVENTORY,
+        "purchase account": INVENTORY,
+        "purchases": INVENTORY,
+        "rent": RENT,
+        # Banks
+        "hdfc bank": BANK_HDFC,
+        "icici bank": BANK_ICICI,
+        "bank od": BANK_OD,
+        "overdraft": BANK_OD,
+        "od": BANK_OD,
+        # GST (try to respect input/output context if present)
+        "input cgst": INPUT_CGST,
+        "output cgst": OUTPUT_CGST,
+        "input sgst": INPUT_SGST,
+        "output sgst": OUTPUT_SGST,
+        "input igst": INPUT_IGST,
+        "output igst": OUTPUT_IGST,
+        "gst payable": GST_PAYABLE,
+    }
+
+    # Exact-ish keyword match first (case-insensitive).
+    for key, code in heuristics.items():
+        if key in simplified:
+            if key == "sales" and "return" in simplified:
+                continue
+            if key == "purchase" and "return" in simplified:
+                continue
+            if code in known_codes:
+                return code
+
+    # Fallback GST mapping when input/output words are not present.
+    if "cgst" in simplified:
+        code = (
+            OUTPUT_CGST
+            if any(w in simplified for w in ("output", "outward", "sale", "sales"))
+            else INPUT_CGST
+        )
+        if code in known_codes:
+            return code
+    if "sgst" in simplified:
+        code = (
+            OUTPUT_SGST
+            if any(w in simplified for w in ("output", "outward", "sale", "sales"))
+            else INPUT_SGST
+        )
+        if code in known_codes:
+            return code
+    if "igst" in simplified:
+        code = (
+            OUTPUT_IGST
+            if any(w in simplified for w in ("output", "outward", "sale", "sales"))
+            else INPUT_IGST
+        )
+        if code in known_codes:
+            return code
+
     raise IngestError(
         f"Unmapped ledger {raw!r}. Add it to the account map or use a canonical COA code."
     )

@@ -41,7 +41,9 @@ def ingest_generic(
     groups = grouped_vouchers(lines)
     for voucher_id, group in groups.items():
         head = group[0]
-        narration = next((row.narration for row in group if row.narration), f"Imported {voucher_id}")
+        narration = next(
+            (row.narration for row in group if row.narration), f"Imported {voucher_id}"
+        )
         try:
             post(
                 session,

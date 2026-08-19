@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from ssdv.models import Product, StockMove
@@ -11,25 +11,21 @@ from ssdv.money import ZERO, money
 
 
 def stock_quantity(session: Session, as_of: date, product_code: str | None = None) -> Decimal:
-    stmt = select(StockMove).where(StockMove.move_date <= as_of)
+    stmt = select(func.coalesce(func.sum(StockMove.qty_in - StockMove.qty_out), 0)).where(
+        StockMove.move_date <= as_of
+    )
     if product_code is not None:
         stmt = stmt.where(StockMove.product_code == product_code)
-    qty = ZERO
-    for move in session.scalars(stmt):
-        qty += Decimal(move.qty_in) - Decimal(move.qty_out)
-    return qty
+    qty = session.scalar(stmt) or ZERO
+    return Decimal(qty)
 
 
 def stock_value(session: Session, as_of: date, product_code: str | None = None) -> Decimal:
-    stmt = select(StockMove).where(StockMove.move_date <= as_of)
+    sign_value = case((StockMove.qty_in > 0, StockMove.value), else_=-StockMove.value)
+    stmt = select(func.coalesce(func.sum(sign_value), 0)).where(StockMove.move_date <= as_of)
     if product_code is not None:
         stmt = stmt.where(StockMove.product_code == product_code)
-    total = ZERO
-    for move in session.scalars(stmt):
-        if Decimal(move.qty_in) > 0:
-            total += money(move.value)
-        else:
-            total -= money(move.value)
+    total = session.scalar(stmt) or ZERO
     return money(total)
 
 

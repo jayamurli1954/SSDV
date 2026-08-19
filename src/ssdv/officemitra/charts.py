@@ -10,7 +10,9 @@ def to_float(value: Any) -> float:
         return 0.0
 
 
-def monthly_series(payload: dict[str, Any], series_id: str, *, last: int = 12) -> tuple[list[str], list[float]]:
+def monthly_series(
+    payload: dict[str, Any], series_id: str, *, last: int = 12
+) -> tuple[list[str], list[float]]:
     monthly = (payload.get("charts") or {}).get("monthly") or {}
     labels = list(monthly.get("categories") or [])[-last:]
     row = next((item for item in monthly.get("series") or [] if item.get("id") == series_id), None)
@@ -21,7 +23,9 @@ def monthly_series(payload: dict[str, Any], series_id: str, *, last: int = 12) -
 
 def aging_points(payload: dict[str, Any], key: str = "ar_aging") -> list[dict[str, Any]]:
     rows = ((payload.get("charts") or {}).get(key) or {}).get("data") or []
-    return [{"label": str(row.get("label") or ""), "value": to_float(row.get("value"))} for row in rows]
+    return [
+        {"label": str(row.get("label") or ""), "value": to_float(row.get("value"))} for row in rows
+    ]
 
 
 def pack_tiles(payload: dict[str, Any], pack_id: str) -> list[dict[str, Any]]:
@@ -49,7 +53,9 @@ def scorecard_points(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
 def pnl_mix_points(payload: dict[str, Any]) -> list[dict[str, Any]]:
     mix = ((payload.get("charts") or {}).get("pnl_mix") or {}).get("data") or []
-    return [{"label": str(row.get("label") or ""), "value": to_float(row.get("value"))} for row in mix]
+    return [
+        {"label": str(row.get("label") or ""), "value": to_float(row.get("value"))} for row in mix
+    ]
 
 
 def monthly_profit_points(payload: dict[str, Any]) -> tuple[list[str], list[float]]:

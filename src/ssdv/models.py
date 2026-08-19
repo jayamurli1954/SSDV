@@ -92,7 +92,9 @@ class JournalLine(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     voucher_id: Mapped[int] = mapped_column(ForeignKey("vouchers.id"), nullable=False, index=True)
     line_no: Mapped[int] = mapped_column(Integer, nullable=False)
-    account_code: Mapped[str] = mapped_column(ForeignKey("accounts.code"), nullable=False, index=True)
+    account_code: Mapped[str] = mapped_column(
+        ForeignKey("accounts.code"), nullable=False, index=True
+    )
     debit: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=0)
     credit: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=0)
     party_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
@@ -133,6 +135,10 @@ class Vendor(Base):
     gstin: Mapped[str | None] = mapped_column(String(15), unique=True)
     payment_days: Mapped[int | None] = mapped_column(Integer)
     lead_time_days: Mapped[int | None] = mapped_column(Integer)
+    # MSME classification for 43B(h) disallowance risk analysis.
+    # 45 days applies when agreement exists; otherwise 15 days.
+    msme_category: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    msme_has_agreement: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -209,7 +215,9 @@ class StockMove(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     move_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
-    product_code: Mapped[str] = mapped_column(ForeignKey("products.code"), nullable=False, index=True)
+    product_code: Mapped[str] = mapped_column(
+        ForeignKey("products.code"), nullable=False, index=True
+    )
     warehouse_code: Mapped[str] = mapped_column(ForeignKey("warehouses.code"), nullable=False)
     qty_in: Mapped[Decimal] = mapped_column(Numeric(18, 3), nullable=False, default=0)
     qty_out: Mapped[Decimal] = mapped_column(Numeric(18, 3), nullable=False, default=0)
@@ -252,7 +260,9 @@ class PurchaseBillLine(Base):
     __tablename__ = "purchase_bill_lines"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    bill_id: Mapped[int] = mapped_column(ForeignKey("purchase_bills.id"), nullable=False, index=True)
+    bill_id: Mapped[int] = mapped_column(
+        ForeignKey("purchase_bills.id"), nullable=False, index=True
+    )
     line_no: Mapped[int] = mapped_column(Integer, nullable=False)
     product_code: Mapped[str] = mapped_column(ForeignKey("products.code"), nullable=False)
     hsn: Mapped[str | None] = mapped_column(String(8))
@@ -276,7 +286,9 @@ class SalesInvoice(Base):
     dispatch_no: Mapped[str] = mapped_column(String(32), nullable=False)
     invoice_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     fy_code: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
-    customer_code: Mapped[str] = mapped_column(ForeignKey("customers.code"), nullable=False, index=True)
+    customer_code: Mapped[str] = mapped_column(
+        ForeignKey("customers.code"), nullable=False, index=True
+    )
     customer_gstin: Mapped[str | None] = mapped_column(String(15))
     customer_state: Mapped[str] = mapped_column(String(2), nullable=False)
     warehouse_code: Mapped[str] = mapped_column(ForeignKey("warehouses.code"), nullable=False)
@@ -301,7 +313,9 @@ class SalesInvoiceLine(Base):
     __tablename__ = "sales_invoice_lines"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    invoice_id: Mapped[int] = mapped_column(ForeignKey("sales_invoices.id"), nullable=False, index=True)
+    invoice_id: Mapped[int] = mapped_column(
+        ForeignKey("sales_invoices.id"), nullable=False, index=True
+    )
     line_no: Mapped[int] = mapped_column(Integer, nullable=False)
     product_code: Mapped[str] = mapped_column(ForeignKey("products.code"), nullable=False)
     hsn: Mapped[str | None] = mapped_column(String(8))
@@ -326,7 +340,9 @@ class Receipt(Base):
     receipt_no: Mapped[str] = mapped_column(String(32), nullable=False)
     receipt_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     fy_code: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
-    customer_code: Mapped[str] = mapped_column(ForeignKey("customers.code"), nullable=False, index=True)
+    customer_code: Mapped[str] = mapped_column(
+        ForeignKey("customers.code"), nullable=False, index=True
+    )
     bank_gl: Mapped[str] = mapped_column(ForeignKey("accounts.code"), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     voucher_id: Mapped[int] = mapped_column(ForeignKey("vouchers.id"), nullable=False)
@@ -459,6 +475,27 @@ class ScenarioMeta(Base):
     title: Mapped[str] = mapped_column(String(128), nullable=False)
     known_cause: Mapped[str] = mapped_column(String(255), nullable=False)
     golden_explanation: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class Gstr2bLine(Base):
+    """A single invoice line from the GSTR-2B return (ITC available from portal)."""
+
+    __tablename__ = "gstr2b_lines"
+    __table_args__ = (
+        UniqueConstraint("return_period", "supplier_gstin", "invoice_no", name="uq_gstr2b_inv"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    return_period: Mapped[str] = mapped_column(String(7), nullable=False, index=True)
+    supplier_gstin: Mapped[str] = mapped_column(String(15), nullable=False)
+    supplier_name: Mapped[str | None] = mapped_column(String(128))
+    invoice_no: Mapped[str] = mapped_column(String(64), nullable=False)
+    invoice_date: Mapped[date] = mapped_column(Date, nullable=False)
+    taxable: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=0)
+    cgst: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=0)
+    sgst: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=0)
+    igst: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=0)
+    itc_available: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class IngestMeta(Base):

@@ -15,6 +15,7 @@ WRAP = 92
 
 def _ascii(value: Any) -> str:
     text = str(value or "")
+    text = text.replace("\u20b9", "INR ")
     return text.encode("ascii", "replace").decode("ascii")
 
 
@@ -54,10 +55,13 @@ def render_board_html(payload: dict[str, Any]) -> str:
         for t in tiles
     )
     flags = payload.get("red_flags") or []
-    flag_html = "".join(
-        f'<p class="insight tone-{_esc(item.get("tone") or "danger")}">{_esc(item.get("text"))}</p>'
-        for item in flags
-    ) or "<p>No Board red flags on DSO policy, cash, equity, or last-month profit.</p>"
+    flag_html = (
+        "".join(
+            f'<p class="insight tone-{_esc(item.get("tone") or "danger")}">{_esc(item.get("text"))}</p>'
+            for item in flags
+        )
+        or "<p>No Board red flags on DSO policy, cash, equity, or last-month profit.</p>"
+    )
     score_rows = "".join(
         f"<tr><td>{_esc(row.get('name'))}</td><td class='num'>{_esc(row.get('actual'))}</td>"
         f"<td>{_esc(row.get('status'))}</td><td>{_esc(row.get('policy'))}</td></tr>"
@@ -72,6 +76,17 @@ def render_board_html(payload: dict[str, Any]) -> str:
         f"<tr><td>{_esc(row.get('prompt'))}</td><td>{_esc(row.get('result'))}</td>"
         f"<td class='num'>{_esc(row.get('delta_inr'))}</td></tr>"
         for row in payload.get("whatif") or []
+    )
+    parties = payload.get("parties") or {}
+    overdue_rows = "".join(
+        f"<tr><td>{_esc(row.get('name'))}</td><td class='num'>{_esc(row.get('overdue_90'))}</td>"
+        f"<td class='num'>{_esc(row.get('outstanding'))}</td></tr>"
+        for row in parties.get("overdue_customers") or []
+    )
+    vendor_rows = "".join(
+        f"<tr><td>{_esc(row.get('name'))}</td><td class='num'>{_esc(row.get('outstanding'))}</td>"
+        f"<td class='num'>{_esc(row.get('overdue_90'))}</td></tr>"
+        for row in parties.get("vendor_exposure") or []
     )
     fc = payload.get("cash_forecast") or {}
     forecast_rows = "".join(
@@ -120,6 +135,11 @@ td, th {{ border-bottom: 1px solid #eee; padding: 6px 0; text-align: left; }}
 <h2>What-if (recommend-only)</h2>
 <p class="meta">{_esc(payload.get("whatif_method") or "")}</p>
 <table><thead><tr><th>Scenario</th><th>Result</th><th class="num">Delta INR</th></tr></thead><tbody>{whatif_rows}</tbody></table>
+<h2>Top overdue customers</h2>
+<p class="meta">{_esc(parties.get("method") or "")}</p>
+<table><thead><tr><th>Customer</th><th class="num">AR 90+</th><th class="num">Outstanding</th></tr></thead><tbody>{overdue_rows}</tbody></table>
+<h2>Top vendor exposure</h2>
+<table><thead><tr><th>Vendor</th><th class="num">Outstanding</th><th class="num">AP 90+</th></tr></thead><tbody>{vendor_rows}</tbody></table>
 <p class="meta">Posted journals only. SSDV never writes back to Tally, Zoho, Busy, or MitraBooks. PPT is not in this pack.</p>
 </body>
 </html>
@@ -197,13 +217,45 @@ def render_board_pdf(payload: dict[str, Any]) -> bytes:
     rows.append((HEAD_SIZE, "Cash forecast 30 / 60 / 90"))
     fc = payload.get("cash_forecast") or {}
     for item in fc.get("horizons") or []:
-        rows.append((BODY_SIZE, f"{item.get('label')}: cash {item.get('cash')}  net {item.get('net')}"))
+        rows.append(
+            (BODY_SIZE, f"{item.get('label')}: cash {item.get('cash')}  net {item.get('net')}")
+        )
 
     rows.append((BODY_SIZE, ""))
     rows.append((HEAD_SIZE, "What-if (recommend-only; books are not changed)"))
     for item in payload.get("whatif") or []:
-        for line in _wrap(f"{item.get('prompt')}  {item.get('result')}  delta {item.get('delta_inr')}"):
+        for line in _wrap(
+            f"{item.get('prompt')}  {item.get('result')}  delta {item.get('delta_inr')}"
+        ):
             rows.append((BODY_SIZE, line))
+
+    parties = payload.get("parties") or {}
+    rows.append((BODY_SIZE, ""))
+    rows.append((HEAD_SIZE, "Top overdue customers"))
+    overdue = list(parties.get("overdue_customers") or [])
+    if overdue:
+        for item in overdue[:10]:
+            rows.append(
+                (
+                    BODY_SIZE,
+                    f"{item.get('name')}: 90+ {item.get('overdue_90')}  AR {item.get('outstanding')}",
+                )
+            )
+    else:
+        rows.append((BODY_SIZE, "No open customer balances."))
+    rows.append((BODY_SIZE, ""))
+    rows.append((HEAD_SIZE, "Top vendor exposure"))
+    vendors = list(parties.get("vendor_exposure") or [])
+    if vendors:
+        for item in vendors[:10]:
+            rows.append(
+                (
+                    BODY_SIZE,
+                    f"{item.get('name')}: AP {item.get('outstanding')}  90+ {item.get('overdue_90')}",
+                )
+            )
+    else:
+        rows.append((BODY_SIZE, "No open vendor balances."))
 
     rows.append((BODY_SIZE, ""))
     rows.append(
@@ -274,9 +326,8 @@ def _assemble_pdf(pages: list[list[tuple[float, str]]]) -> bytes:
     for off in offsets[1:]:
         out.extend(f"{off:010d} 00000 n \n".encode("ascii"))
     out.extend(
-        (
-            f"trailer << /Size {len(objs) + 1} /Root 1 0 R >>\n"
-            f"startxref\n{xref}\n%%EOF\n"
-        ).encode("ascii")
+        (f"trailer << /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n").encode(
+            "ascii"
+        )
     )
     return bytes(out)

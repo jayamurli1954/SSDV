@@ -107,7 +107,7 @@ def _sales_up_15(snap: MisSnapshot) -> WhatIfRow:
         result=(
             f"At the same gross margin and YTD opex ({_inr(snap.fy.opex)}), "
             f"YTD profit moves from {_inr(snap.ytd_profit)} to {_inr(new_profit)} "
-            f"({ '+' if delta >= ZERO else ''}{_inr(delta)})."
+            f"({'+' if delta >= ZERO else ''}{_inr(delta)})."
         ),
         delta_inr=delta,
         tone="success" if delta > ZERO else "neutral",

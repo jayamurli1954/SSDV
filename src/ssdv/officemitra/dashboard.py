@@ -17,6 +17,16 @@ def _bar_row(label: str, value: float, max_value: float) -> str:
     )
 
 
+def _party_rows(rows: list[dict[str, Any]], overdue_label: str) -> str:
+    return "".join(
+        f"<tr><td>{_esc(row.get('name'))}</td>"
+        f"<td class='num'>{_esc(row.get(overdue_label))}</td>"
+        f"<td class='num'>{_esc(row.get('outstanding'))}</td>"
+        f"<td>{_esc(row.get('oldest_days') if row.get('oldest_days') is not None else 'unaged')}</td></tr>"
+        for row in rows
+    )
+
+
 def render_dashboard(payload: dict[str, Any]) -> str:
     """Single-file CEO screen. No CDN. Opens in a browser."""
     kpis = payload.get("kpis") or {}
@@ -109,6 +119,23 @@ def render_dashboard(payload: dict[str, Any]) -> str:
         if whatif_rows
         else ""
     )
+    parties = payload.get("parties") or {}
+    overdue_rows = _party_rows(list(parties.get("overdue_customers") or []), "overdue_90")
+    vendor_rows = _party_rows(list(parties.get("vendor_exposure") or []), "overdue_90")
+    party_block = ""
+    if overdue_rows or vendor_rows:
+        party_block = (
+            f'<section class="card"><h2>Customer & vendor intelligence</h2>'
+            f'<p class="meta">{_esc(parties.get("method") or "")}</p>'
+            f"<h2>Top overdue customers</h2>"
+            f"<table><thead><tr><th>Customer</th><th class='num'>AR 90+</th>"
+            f"<th class='num'>Outstanding</th><th>Oldest</th></tr></thead>"
+            f"<tbody>{overdue_rows or '<tr><td colspan=4>None</td></tr>'}</tbody></table>"
+            f"<h2>Top vendor exposure</h2>"
+            f"<table><thead><tr><th>Vendor</th><th class='num'>AP 90+</th>"
+            f"<th class='num'>Outstanding</th><th>Oldest</th></tr></thead>"
+            f"<tbody>{vendor_rows or '<tr><td colspan=4>None</td></tr>'}</tbody></table></section>"
+        )
     tile_html = "".join(
         f'<div class="tile tone-{_esc(t.get("tone") or "neutral")}">'
         f'<div class="tile-val">{_esc(t.get("value"))}</div>'
@@ -118,7 +145,9 @@ def render_dashboard(payload: dict[str, Any]) -> str:
     analyst = payload.get("analyst")
     analyst_block = ""
     if analyst:
-        analyst_block = f'<section class="card"><h2>OfficeMitra (Ollama)</h2><p>{_esc(analyst)}</p></section>'
+        analyst_block = (
+            f'<section class="card"><h2>OfficeMitra (Ollama)</h2><p>{_esc(analyst)}</p></section>'
+        )
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -166,6 +195,7 @@ td, th {{ border-bottom: 1px solid #eee; padding: 6px 0; }}
 </section>
 {bench_block}
 {whatif_block}
+{party_block}
 {analyst_block}
 <div class="cols">
 <section class="card">

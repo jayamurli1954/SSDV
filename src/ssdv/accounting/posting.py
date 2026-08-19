@@ -93,8 +93,9 @@ def post(session: Session, request: PostingRequest) -> Voucher:
     session.add(voucher)
     session.flush()
 
+    journal_lines: list[JournalLine] = []
     for idx, line in enumerate(request.lines, start=1):
-        session.add(
+        journal_lines.append(
             JournalLine(
                 voucher_id=voucher.id,
                 line_no=idx,
@@ -108,5 +109,6 @@ def post(session: Session, request: PostingRequest) -> Voucher:
                 line_narration=line.line_narration,
             )
         )
+    session.add_all(journal_lines)
     session.flush()
     return voucher

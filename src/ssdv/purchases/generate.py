@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from datetime import date, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from sqlalchemy import func, select
@@ -15,7 +15,7 @@ from ssdv.paths import load_company
 from ssdv.purchases.posting import PurchaseLineInput, post_purchase
 from ssdv.scenarios.spec import knobs
 
-QTY_ONE = Decimal("1")
+QTY_ONE = Decimal(1)
 GROSS_MARGIN = Decimal("0.22")
 
 
@@ -79,7 +79,7 @@ def generate_purchases(
         if not days:
             raise RuntimeError(f"No working days in {year['code']}")
 
-        purchase_value = money(Decimal(str(year["revenue_inr"])) * (Decimal("1") - GROSS_MARGIN))
+        purchase_value = money(Decimal(str(year["revenue_inr"])) * (Decimal(1) - GROSS_MARGIN))
         qty_mult = Decimal(str((extra.get("purchase_qty_multipliers") or [1, 1, 1])[year_i]))
         cost_mult = Decimal(str((extra.get("cost_multipliers") or [1, 1, 1])[year_i]))
         line_target = money(purchase_value / Decimal(n_bills * 3) * qty_mult)
@@ -96,9 +96,7 @@ def generate_purchases(
             lines: list[PurchaseLineInput] = []
             for product in chosen:
                 rate = money(
-                    product.cost_price
-                    * cost_mult
-                    * Decimal(str(round(rng.uniform(0.97, 1.04), 4)))
+                    product.cost_price * cost_mult * Decimal(str(round(rng.uniform(0.97, 1.04), 4)))
                 )
                 qty = _qty(line_target / rate, product.uom)
                 lines.append(PurchaseLineInput(product=product, qty=qty, rate=rate))

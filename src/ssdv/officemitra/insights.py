@@ -13,12 +13,12 @@ from ssdv.mis.policy import (
 )
 from ssdv.money import ZERO, money
 
-
 WHY_PROMPTS = (
     "Why did profit fall?",
     "Why is cash negative?",
     "Why is inventory rising?",
     "Why is AR over 90 days up?",
+    "Which customers are delaying payment?",
     "Which customers drive concentration?",
 )
 
@@ -56,9 +56,7 @@ def build_why(snap: MisSnapshot) -> tuple[Insight, ...]:
         if gm_last < gm_prev:
             drivers.append(f"gross margin rupees fell from {_inr(gm_prev)} to {_inr(gm_last)}")
         if opex_last > opex_prev:
-            drivers.append(
-                f"operating expenses rose from {_inr(opex_prev)} to {_inr(opex_last)}"
-            )
+            drivers.append(f"operating expenses rose from {_inr(opex_prev)} to {_inr(opex_last)}")
         if rec_last < rec_prev:
             drivers.append(f"receipts fell from {_inr(rec_prev)} to {_inr(rec_last)}")
         if profit_last < profit_prev and drivers:
@@ -124,9 +122,7 @@ def build_why(snap: MisSnapshot) -> tuple[Insight, ...]:
         extra = ""
         gap = snap.dso_policy_gap_ar
         if gap is not None:
-            extra = (
-                f" DSO {snap.dso} days vs 120-day policy implies about {_inr(gap)} extra AR vs policy."
-            )
+            extra = f" DSO {snap.dso} days vs 120-day policy implies about {_inr(gap)} extra AR vs policy."
         out.append(
             Insight(
                 "why_ar90",
@@ -192,7 +188,7 @@ def build_red_flags(snap: MisSnapshot) -> tuple[Insight, ...]:
     return tuple(flags)
 
 
-def build_insights(snap: MisSnapshot, *, limit: int = 18) -> tuple[Insight, ...]:
+def build_insights(snap: MisSnapshot, *, limit: int = 22) -> tuple[Insight, ...]:
     """Short lines to show on P&L / aging / CEO / why. Numbers only, no invented cause."""
     out: list[Insight] = []
     if snap.sales_growth is not None:
@@ -262,6 +258,42 @@ def build_insights(snap: MisSnapshot, *, limit: int = 18) -> tuple[Insight, ...]
                 "aging",
                 f"AR 90+ is {_pct(share)} of receivables ({_inr(overdue)} of {_inr(ar)}).",
                 aging_tone,
+            )
+        )
+
+    customers = getattr(snap, "overdue_customers", ()) or ()
+    if customers:
+        top = customers[0]
+        if top.overdue_90 > ZERO:
+            out.append(
+                Insight(
+                    "top_overdue",
+                    "aging",
+                    f"{top.name} has {_inr(top.overdue_90)} in AR 90+ ({_pct(top.share)} of AR).",
+                    "danger",
+                )
+            )
+        else:
+            out.append(
+                Insight(
+                    "top_overdue",
+                    "aging",
+                    (
+                        f"Largest AR balance is {top.name} {_inr(top.outstanding)} "
+                        "(no 90+ invoice aging on these books)."
+                    ),
+                    "neutral",
+                )
+            )
+    vendors = getattr(snap, "vendor_exposure", ()) or ()
+    if vendors:
+        topv = vendors[0]
+        out.append(
+            Insight(
+                "top_vendor",
+                "cfo",
+                f"Largest vendor exposure is {topv.name} {_inr(topv.outstanding)} ({_pct(topv.share)} of AP).",
+                "warning" if topv.share >= money("0.20") else "neutral",
             )
         )
 

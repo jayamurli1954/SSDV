@@ -52,6 +52,7 @@ def test_compact_facts_tails_months_and_hides_golden_for_imported() -> None:
     assert facts["cash_forecast"] == {}
     assert facts["benchmarks"] == []
     assert facts["whatif"] == []
+    assert facts["parties"] == {}
 
 
 def test_compact_facts_keeps_ssdv_cause_on_seed() -> None:
@@ -93,7 +94,9 @@ def test_chat_reads_ollama_message(monkeypatch: pytest.MonkeyPatch) -> None:
         return FakeResponse(payload.encode("utf-8"))
 
     monkeypatch.setattr("ssdv.ask.ollama.urllib.request.urlopen", fake_urlopen)
-    answer = chat([{"role": "user", "content": "hi"}], model="llama3.1:8b", host="http://127.0.0.1:11434")
+    answer = chat(
+        [{"role": "user", "content": "hi"}], model="llama3.1:8b", host="http://127.0.0.1:11434"
+    )
     assert "receipts lagged" in answer
 
 

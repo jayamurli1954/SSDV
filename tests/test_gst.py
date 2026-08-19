@@ -28,7 +28,7 @@ def test_odd_paise_lands_on_sgst() -> None:
 
 
 def test_zero_rate() -> None:
-    cgst, sgst, igst = gst_split(money("500.00"), Decimal("0"), interstate=False)
+    cgst, sgst, igst = gst_split(money("500.00"), Decimal(0), interstate=False)
     assert (cgst, sgst, igst) == (money("0"), money("0"), money("0"))
 
 
