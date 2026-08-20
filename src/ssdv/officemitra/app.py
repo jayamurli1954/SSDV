@@ -80,6 +80,10 @@ div[data-testid="stMetricValue"] {
   font-size: 1.35rem !important;
   color: #1C1917 !important;
 }
+/* Party tables: scroll instead of clipping the last column header */
+div[data-testid="stDataFrame"] {
+  overflow-x: auto !important;
+}
 .om-note {
   border-radius: 10px;
   padding: 0.85rem 1.05rem;
@@ -239,6 +243,13 @@ def _metrics(tiles: list[dict]) -> None:
     st.markdown(f'<div class="om-tiles">{"".join(cards)}</div>', unsafe_allow_html=True)
 
 
+def _party_oldest(row: dict) -> str:
+    days = row.get("oldest_days")
+    if days is None:
+        return "unaged"
+    return f"{days} d"
+
+
 def _render_parties(payload: dict, *, vendors: bool = True, limit: int | None = None) -> None:
     parties = payload.get("parties") or {}
     method = str(parties.get("method") or "")
@@ -256,50 +267,58 @@ def _render_parties(payload: dict, *, vendors: bool = True, limit: int | None = 
     cust_title = (
         "Top overdue customers" if rank == "overdue_90" else "Top AR balances (no 90+ aging)"
     )
-    cols = st.columns(2 if vendors else 1, gap="large")
-    with cols[0]:
-        st.markdown(f"**{cust_title}**")
-        if customers:
+    # Stack full-width: side-by-side dataframes clipped the "Oldest" column to "O".
+    st.markdown(f"**{cust_title}**")
+    if customers:
+        st.dataframe(
+            [
+                {
+                    "Customer": row.get("name"),
+                    "AR 90+": row.get("overdue_90"),
+                    "Outstanding": row.get("outstanding"),
+                    "Unaged": row.get("unaged"),
+                    "Oldest": _party_oldest(row),
+                }
+                for row in customers
+            ],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Customer": st.column_config.TextColumn("Customer", width="large"),
+                "AR 90+": st.column_config.NumberColumn("AR 90+", format="%.2f"),
+                "Outstanding": st.column_config.NumberColumn("Outstanding", format="%.2f"),
+                "Unaged": st.column_config.NumberColumn("Unaged", format="%.2f"),
+                "Oldest": st.column_config.TextColumn("Oldest", width="small"),
+            },
+        )
+    else:
+        st.write("No open customer balances.")
+    if vendors:
+        st.markdown("**Top vendor exposure**")
+        if vendors_rows:
             st.dataframe(
                 [
                     {
-                        "Customer": row.get("name"),
-                        "AR 90+": row.get("overdue_90"),
+                        "Vendor": row.get("name"),
                         "Outstanding": row.get("outstanding"),
+                        "AP 90+": row.get("overdue_90"),
                         "Unaged": row.get("unaged"),
-                        "Oldest days": row.get("oldest_days")
-                        if row.get("oldest_days") is not None
-                        else "unaged",
+                        "Oldest": _party_oldest(row),
                     }
-                    for row in customers
+                    for row in vendors_rows
                 ],
                 use_container_width=True,
                 hide_index=True,
+                column_config={
+                    "Vendor": st.column_config.TextColumn("Vendor", width="large"),
+                    "Outstanding": st.column_config.NumberColumn("Outstanding", format="%.2f"),
+                    "AP 90+": st.column_config.NumberColumn("AP 90+", format="%.2f"),
+                    "Unaged": st.column_config.NumberColumn("Unaged", format="%.2f"),
+                    "Oldest": st.column_config.TextColumn("Oldest", width="small"),
+                },
             )
         else:
-            st.write("No open customer balances.")
-    if vendors:
-        with cols[-1]:
-            st.markdown("**Top vendor exposure**")
-            if vendors_rows:
-                st.dataframe(
-                    [
-                        {
-                            "Vendor": row.get("name"),
-                            "Outstanding": row.get("outstanding"),
-                            "AP 90+": row.get("overdue_90"),
-                            "Unaged": row.get("unaged"),
-                            "Oldest days": row.get("oldest_days")
-                            if row.get("oldest_days") is not None
-                            else "unaged",
-                        }
-                        for row in vendors_rows
-                    ],
-                    use_container_width=True,
-                    hide_index=True,
-                )
-            else:
-                st.write("No open vendor balances.")
+            st.write("No open vendor balances.")
 
 
 def _render_benchmarks(payload: dict) -> None:

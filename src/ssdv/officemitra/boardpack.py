@@ -80,12 +80,16 @@ def render_board_html(payload: dict[str, Any]) -> str:
     parties = payload.get("parties") or {}
     overdue_rows = "".join(
         f"<tr><td>{_esc(row.get('name'))}</td><td class='num'>{_esc(row.get('overdue_90'))}</td>"
-        f"<td class='num'>{_esc(row.get('outstanding'))}</td></tr>"
+        f"<td class='num'>{_esc(row.get('outstanding'))}</td>"
+        f"<td class='num'>{_esc(row.get('unaged'))}</td>"
+        f"<td>{_esc(row.get('oldest_days') if row.get('oldest_days') is not None else 'unaged')}</td></tr>"
         for row in parties.get("overdue_customers") or []
     )
     vendor_rows = "".join(
         f"<tr><td>{_esc(row.get('name'))}</td><td class='num'>{_esc(row.get('outstanding'))}</td>"
-        f"<td class='num'>{_esc(row.get('overdue_90'))}</td></tr>"
+        f"<td class='num'>{_esc(row.get('overdue_90'))}</td>"
+        f"<td class='num'>{_esc(row.get('unaged'))}</td>"
+        f"<td>{_esc(row.get('oldest_days') if row.get('oldest_days') is not None else 'unaged')}</td></tr>"
         for row in parties.get("vendor_exposure") or []
     )
     fc = payload.get("cash_forecast") or {}
@@ -137,9 +141,9 @@ td, th {{ border-bottom: 1px solid #eee; padding: 6px 0; text-align: left; }}
 <table><thead><tr><th>Scenario</th><th>Result</th><th class="num">Delta INR</th></tr></thead><tbody>{whatif_rows}</tbody></table>
 <h2>Top overdue customers</h2>
 <p class="meta">{_esc(parties.get("method") or "")}</p>
-<table><thead><tr><th>Customer</th><th class="num">AR 90+</th><th class="num">Outstanding</th></tr></thead><tbody>{overdue_rows}</tbody></table>
+<table><thead><tr><th>Customer</th><th class="num">AR 90+</th><th class="num">Outstanding</th><th class="num">Unaged</th><th>Oldest</th></tr></thead><tbody>{overdue_rows}</tbody></table>
 <h2>Top vendor exposure</h2>
-<table><thead><tr><th>Vendor</th><th class="num">Outstanding</th><th class="num">AP 90+</th></tr></thead><tbody>{vendor_rows}</tbody></table>
+<table><thead><tr><th>Vendor</th><th class="num">Outstanding</th><th class="num">AP 90+</th><th class="num">Unaged</th><th>Oldest</th></tr></thead><tbody>{vendor_rows}</tbody></table>
 <p class="meta">Posted journals only. SSDV never writes back to Tally, Zoho, Busy, or MitraBooks. PPT is not in this pack.</p>
 </body>
 </html>
@@ -235,10 +239,15 @@ def render_board_pdf(payload: dict[str, Any]) -> bytes:
     overdue = list(parties.get("overdue_customers") or [])
     if overdue:
         for item in overdue[:10]:
+            oldest = item.get("oldest_days")
+            age = f"{oldest} d" if oldest is not None else "unaged"
             rows.append(
                 (
                     BODY_SIZE,
-                    f"{item.get('name')}: 90+ {item.get('overdue_90')}  AR {item.get('outstanding')}",
+                    (
+                        f"{item.get('name')}: 90+ {item.get('overdue_90')}  "
+                        f"AR {item.get('outstanding')}  oldest {age}"
+                    ),
                 )
             )
     else:
@@ -248,10 +257,15 @@ def render_board_pdf(payload: dict[str, Any]) -> bytes:
     vendors = list(parties.get("vendor_exposure") or [])
     if vendors:
         for item in vendors[:10]:
+            oldest = item.get("oldest_days")
+            age = f"{oldest} d" if oldest is not None else "unaged"
             rows.append(
                 (
                     BODY_SIZE,
-                    f"{item.get('name')}: AP {item.get('outstanding')}  90+ {item.get('overdue_90')}",
+                    (
+                        f"{item.get('name')}: AP {item.get('outstanding')}  "
+                        f"90+ {item.get('overdue_90')}  oldest {age}"
+                    ),
                 )
             )
     else:

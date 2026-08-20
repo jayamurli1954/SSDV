@@ -22,6 +22,7 @@ def _party_rows(rows: list[dict[str, Any]], overdue_label: str) -> str:
         f"<tr><td>{_esc(row.get('name'))}</td>"
         f"<td class='num'>{_esc(row.get(overdue_label))}</td>"
         f"<td class='num'>{_esc(row.get('outstanding'))}</td>"
+        f"<td class='num'>{_esc(row.get('unaged'))}</td>"
         f"<td>{_esc(row.get('oldest_days') if row.get('oldest_days') is not None else 'unaged')}</td></tr>"
         for row in rows
     )
@@ -129,12 +130,12 @@ def render_dashboard(payload: dict[str, Any]) -> str:
             f'<p class="meta">{_esc(parties.get("method") or "")}</p>'
             f"<h2>Top overdue customers</h2>"
             f"<table><thead><tr><th>Customer</th><th class='num'>AR 90+</th>"
-            f"<th class='num'>Outstanding</th><th>Oldest</th></tr></thead>"
-            f"<tbody>{overdue_rows or '<tr><td colspan=4>None</td></tr>'}</tbody></table>"
+            f"<th class='num'>Outstanding</th><th class='num'>Unaged</th><th>Oldest</th></tr></thead>"
+            f"<tbody>{overdue_rows or '<tr><td colspan=5>None</td></tr>'}</tbody></table>"
             f"<h2>Top vendor exposure</h2>"
             f"<table><thead><tr><th>Vendor</th><th class='num'>AP 90+</th>"
-            f"<th class='num'>Outstanding</th><th>Oldest</th></tr></thead>"
-            f"<tbody>{vendor_rows or '<tr><td colspan=4>None</td></tr>'}</tbody></table></section>"
+            f"<th class='num'>Outstanding</th><th class='num'>Unaged</th><th>Oldest</th></tr></thead>"
+            f"<tbody>{vendor_rows or '<tr><td colspan=5>None</td></tr>'}</tbody></table></section>"
         )
     tile_html = "".join(
         f'<div class="tile tone-{_esc(t.get("tone") or "neutral")}">'
