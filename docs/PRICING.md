@@ -20,7 +20,21 @@ OfficeMitra uses a **one-time desktop license + annual maintenance (AMC)** model
 | **CA Pack 20** | ₹15,999 | ₹6,999 | 20 | Mid-size CA practice |
 | **CA Pack 50** | ₹39,999 | ₹9,999 | 50 | Large CA practice |
 
-\* **Launch price** ₹6,999 for Professional; **list price** ₹9,999 after early-adopter window. Document the offer end date on your landing page.
+\* **Launch price** ₹6,999 for Professional; **regular price** ₹7,999 after early-adopter window.
+
+**Do not show Professional “list” as ₹9,999** — Enterprise is ₹9,999 for **5 companies**. Showing ₹9,999 struck through on Professional implies the customer could pay the same amount and get five entities, which is misleading.
+
+---
+
+## Landing page copy (recommended)
+
+| Plan | Show on website | Avoid |
+| --- | --- | --- |
+| **Professional** | **₹6,999** launch · Regular **₹7,999** · 1 company | ~~List: ₹9,999~~ strikethrough |
+| **Enterprise** | **₹9,999** · **5 companies / branches** · Group consolidation, Tally live sync, GSTR-2B | Competing only on “more features” without mentioning 5 entities |
+
+**One-line upgrade message:**  
+*“On Professional you run **one company** with the full CFO toolkit. Step up to Enterprise at ₹9,999 when you need **five entities under one group** with live Tally sync and GSTR-2B.”*
 
 ---
 
@@ -59,7 +73,9 @@ OfficeMitra uses a **one-time desktop license + annual maintenance (AMC)** model
 | **Enterprise** | “One group, five entities — consolidated MIS.” |
 | **CA Packs** | “Client portfolio dashboard for your practice.” |
 
-**Enterprise vs CA Pack 5:** both allow 5 companies, but **Enterprise** is one owner / branch group; **CA Pack** is five **separate client** vaults with CA workflow (not discounted below Enterprise for the same seat count).
+**Enterprise vs Professional:** Professional is **one company**, full analytics. Enterprise is **five companies/branches (same owner)** plus group consolidation, Tally HTTP, and GSTR-2B — not “the same price for the same thing.”
+
+**Enterprise vs CA Pack 5:** both allow 5 companies, but **Enterprise** is one owner / branch group; **CA Pack** is five **separate client** vaults with CA workflow.
 
 ---
 

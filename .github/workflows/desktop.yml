@@ -1,0 +1,45 @@
+name: Desktop packages
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build Windows app and installer
+        shell: pwsh
+        run: .\installer\build-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OfficeMitra-Windows
+          path: |
+            dist/OfficeMitra-Setup.exe
+            dist/OfficeMitra-windows.zip
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build Mac app and DMG
+        run: bash installer/macos/build-macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OfficeMitra-macOS
+          path: dist/OfficeMitra.dmg
+          if-no-files-found: error

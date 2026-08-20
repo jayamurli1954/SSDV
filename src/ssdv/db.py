@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -30,8 +30,35 @@ def make_engine(db_path: Path | None = None) -> Engine:
     return engine
 
 
-def create_schema(engine: Engine) -> None:
+def _sqlite_columns(engine: Engine, table: str) -> set[str]:
+    with engine.connect() as conn:
+        rows = conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
+    return {str(row[1]) for row in rows}
+
+
+def upgrade_schema(engine: Engine) -> None:
+    """Create tables and add columns introduced after first install (SQLite has no auto-migrate)."""
     Base.metadata.create_all(engine)
+    if engine.dialect.name != "sqlite":
+        return
+    names = set(inspect(engine).get_table_names())
+    if "vendors" in names:
+        cols = _sqlite_columns(engine, "vendors")
+        alters: list[str] = []
+        if "msme_category" not in cols:
+            alters.append("ALTER TABLE vendors ADD COLUMN msme_category VARCHAR(16)")
+        if "msme_has_agreement" not in cols:
+            alters.append(
+                "ALTER TABLE vendors ADD COLUMN msme_has_agreement BOOLEAN NOT NULL DEFAULT 0"
+            )
+        if alters:
+            with engine.begin() as conn:
+                for stmt in alters:
+                    conn.execute(text(stmt))
+
+
+def create_schema(engine: Engine) -> None:
+    upgrade_schema(engine)
 
 
 def drop_schema(engine: Engine) -> None:

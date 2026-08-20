@@ -3,6 +3,18 @@ $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 Set-Location $Root
 
+$frozen = Join-Path $Root "dist\OfficeMitra\OfficeMitra.exe"
+if (Test-Path $frozen) {
+    Start-Process -FilePath $frozen -WorkingDirectory (Split-Path $frozen)
+    exit 0
+}
+
+$desktopExe = Join-Path $Root ".venv\Scripts\officemitra.exe"
+if (Test-Path $desktopExe) {
+    & $desktopExe
+    exit $LASTEXITCODE
+}
+
 $ssdvExe = Join-Path $Root ".venv\Scripts\ssdv.exe"
 if (-not (Test-Path $ssdvExe)) {
     Write-Host ""

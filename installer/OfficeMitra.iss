@@ -1,6 +1,5 @@
-; OfficeMitra Windows installer (Inno Setup 6)
-; Build on a Windows PC with Inno Setup installed:
-;   .\installer\build-installer.ps1
+; OfficeMitra Windows installer (Inno Setup 6) — bundled executable, no Python required.
+; Build:  .\installer\build-windows.ps1
 
 #define MyAppName "OfficeMitra"
 #define MyAppVersion "0.1.0"
@@ -16,18 +15,19 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppSupport}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=..\dist
 OutputBaseFilename=OfficeMitra-Setup
 SetupIconFile=..\assets\officemitra.ico
-UninstallDisplayIcon={app}\assets\officemitra.ico
+UninstallDisplayIcon={app}\OfficeMitra.exe
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 ArchitecturesInstallIn64BitMode=x64compatible
+MinVersion=10.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -36,27 +36,21 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: checkedonce
 
 [Files]
-Source: "..\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: ".venv\*;.git\*;dist\*;*.sqlite;__pycache__\*;.pytest_cache\*;.tmp_*;*.pyc"
+; Bundled app + HOW-TO-INSTALL.txt + docs\*.pdf (copied by build-windows.ps1)
+Source: "..\dist\OfficeMitra\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\Start-OfficeMitra.bat"; IconFilename: "{app}\assets\officemitra.ico"; WorkingDir: "{app}"
-Name: "{group}\Install / Repair"; Filename: "{app}\Install-OfficeMitra.bat"; IconFilename: "{app}\assets\officemitra.ico"; WorkingDir: "{app}"
-Name: "{group}\User manual"; Filename: "{app}\docs\CLIENT_MANUAL.md"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\Start-OfficeMitra.bat"; IconFilename: "{app}\assets\officemitra.ico"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\OfficeMitra.exe"; WorkingDir: "{app}"
+Name: "{group}\How to install"; Filename: "{app}\HOW-TO-INSTALL.txt"
+Name: "{group}\User manual (PDF)"; Filename: "{app}\docs\CLIENT_MANUAL.pdf"
+Name: "{group}\Install guide (PDF)"; Filename: "{app}\docs\CLIENT_INSTALL.pdf"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\OfficeMitra.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\install.ps1"" -Silent"; StatusMsg: "Installing OfficeMitra components (first time may take a few minutes)..."; Flags: waituntilterminated
-Filename: "{app}\Start-OfficeMitra.bat"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent unchecked
+Filename: "{app}\OfficeMitra.exe"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Messages]
-WelcomeLabel2=This will install [name/ver] on your computer.%n%nYour accounting data stays on this PC. OfficeMitra reads exported books only — it never writes back to Tally, Zoho, or Busy.%n%nSupport: {#MyAppSupport}
+WelcomeLabel2=This will install [name/ver] on your computer.%n%nNo Python install is required. Your accounting data stays on this PC. OfficeMitra reads exported books only — it never writes back to Tally, Zoho, or Busy.%n%nSupport: {#MyAppSupport}
 
 [UninstallDelete]
-Type: filesandordirs; Name: "{app}\.venv"
-Type: filesandordirs; Name: "{app}\data"
-
-[Code]
-function InitializeSetup(): Boolean;
-begin
-  Result := True;
-end;
+Type: filesandordirs; Name: "{localappdata}\OfficeMitra\logs"

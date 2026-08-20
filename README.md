@@ -6,7 +6,7 @@ v1 still ships a generated company — **ABC Industrial Supplies Pvt Ltd** — e
 
 **Full user manual (PowerShell, Streamlit, connect/upload, CLI):** [docs/USER_MANUAL.md](docs/USER_MANUAL.md)
 
-**Client install (non-technical, Windows):** [docs/CLIENT_INSTALL.md](docs/CLIENT_INSTALL.md) · run **`install.ps1`** · then **`Start-OfficeMitra.bat`**
+**Client install (Windows Setup.exe / Mac .dmg — no Python required):** [docs/CLIENT_INSTALL.md](docs/CLIENT_INSTALL.md)
 
 **Client user manual (workflows, FAQs, support):** [docs/CLIENT_MANUAL.md](docs/CLIENT_MANUAL.md)
 
@@ -21,14 +21,14 @@ See [docs/BLUEPRINT.md](docs/BLUEPRINT.md) and [config/companies/abc_industrial.
 
 ## Setup
 
-### Client PC (recommended — non-technical)
+### Client PC (recommended — no Python)
 
-1. Unzip the SSDV folder.
-2. Install [Python 3.11+](https://www.python.org/downloads/) (tick **Add to PATH**).
-3. Right-click **`install.ps1`** → **Run with PowerShell**.
-4. Double-click **`Start-OfficeMitra.bat`** → browser opens http://localhost:8501.
+**Windows:** run **OfficeMitra-Setup.exe**, then double-click **OfficeMitra** on the desktop.
 
-See **[docs/CLIENT_INSTALL.md](docs/CLIENT_INSTALL.md)** and **[docs/CLIENT_MANUAL.md](docs/CLIENT_MANUAL.md)**.  
+**Mac:** open **OfficeMitra.dmg**, drag the app to **Applications**, then launch **OfficeMitra**.
+
+See **[docs/CLIENT_INSTALL.md](docs/CLIENT_INSTALL.md)**. SanMitra builds these files with `.\installer\build-windows.ps1` and `./installer/macos/build-macos.sh` (see **[installer/README.md](installer/README.md)**).
+
 Support: **contact@sanmitratech.in** · **https://www.sanmitratech.in**
 
 ### Developer setup

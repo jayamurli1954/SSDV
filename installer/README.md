@@ -1,63 +1,84 @@
-# Building the Windows installer
+# Building OfficeMitra for Windows and Mac
 
-SanMitra distributes **OfficeMitra-Setup.exe** — a standard Windows installer that non-technical users double-click to install.
+Customers install **OfficeMitra like any other desktop app**. They do **not** need Python.
+
+| Platform | File to publish | What the customer does |
+| --- | --- | --- |
+| **Windows 10/11** | `dist/OfficeMitra-Setup.exe` | Double-click → Next → Install → desktop shortcut |
+| **macOS 12+** | `dist/OfficeMitra.dmg` | Open disk image → drag **OfficeMitra** to **Applications** |
+
+Portable fallback (Windows): `dist/OfficeMitra-windows.zip` — unzip, read **`HOW-TO-INSTALL.txt`**, run `OfficeMitra.exe`. The zip also includes **`docs/*.pdf`** (install guide + manuals).
 
 ## What the customer sees
 
-1. Download **OfficeMitra-Setup.exe** from your website
-2. Double-click → guided wizard (Next → Install)
-3. Installer copies files, runs first-time setup (Python packages)
-4. **Desktop shortcut** “OfficeMitra” appears with the app icon
-5. Customer double-clicks the desktop icon to launch the dashboard
+1. Download the installer (Windows) or disk image (Mac).
+2. Install / drag to Applications.
+3. Open **OfficeMitra** from the desktop (Windows) or Launchpad / Applications (Mac).
+4. A small status window stays open. The dashboard opens in the browser.
+5. Close the status window to quit.
 
-## Build steps (SanMitra team)
+Books are stored on the customer PC:
 
-### Prerequisites
+- Windows: `%LOCALAPPDATA%\OfficeMitra\data`
+- Mac: `~/Library/Application Support/OfficeMitra/data`
 
-- Windows 10/11
-- [Inno Setup 6](https://jrsoftware.org/isdl.php) (free)
-- Python 3.11+ on the build machine (for tests only)
+## Build on Windows
 
-### Build the setup EXE
+Needs Python 3.11+ **on the build PC only** (not on the customer PC).
 
 ```powershell
 cd D:\SSDV
-.\installer\build-installer.ps1
+.\installer\build-windows.ps1
 ```
 
-Output: **`dist\OfficeMitra-Setup.exe`**
+Output:
 
-Upload this file to your landing page / customer portal.
+- `dist\OfficeMitra\OfficeMitra.exe` — the app
+- `dist\OfficeMitra-windows.zip` — portable zip
+- `dist\OfficeMitra-Setup.exe` — if [Inno Setup 6](https://jrsoftware.org/isdl.php) is installed
 
-### Test without Inno Setup
+Without Inno Setup you can still ship the zip. The GitHub Action installs Inno Setup for you.
 
-For development or ZIP distribution:
+## Build on Mac
 
-```powershell
-# Double-click in Explorer:
-Install-OfficeMitra.bat
+Needs Python 3.11+ and Xcode command-line tools **on the build Mac only**.
+
+```bash
+chmod +x installer/macos/build-macos.sh
+./installer/macos/build-macos.sh
 ```
 
-This opens a graphical setup wizard and creates the desktop shortcut.
+Output:
+
+- `dist/OfficeMitra.app`
+- `dist/OfficeMitra.dmg`
+
+Unsigned builds: the customer right-clicks the app → **Open** the first time (Gatekeeper). Apple notarization needs a paid Apple Developer ID (later).
+
+## GitHub Actions
+
+Workflow **Desktop packages** (`.github/workflows/desktop.yml`):
+
+- Manual run: **Actions → Desktop packages → Run workflow**
+- Or push a tag `v0.1.0`
+
+Download the artifacts and put them on https://www.sanmitratech.in.
 
 ## Files
 
 | File | Purpose |
 | --- | --- |
-| `installer/OfficeMitra.iss` | Inno Setup script |
-| `installer/build-installer.ps1` | Builds `dist/OfficeMitra-Setup.exe` |
-| `installer/gui-install.ps1` | Graphical installer (no Inno required) |
-| `installer/OfficeMitra.Install.psm1` | Shared install logic |
-| `Install-OfficeMitra.bat` | Double-click entry for GUI installer |
-| `install.ps1` | Console installer (+ silent mode for Inno) |
-| `Start-OfficeMitra.bat` | Launches the Streamlit dashboard |
-| `assets/officemitra.ico` | App icon |
+| `installer/OfficeMitra.spec` | PyInstaller recipe (bundles Streamlit + Python) |
+| `installer/build-windows.ps1` | Windows exe + zip + Setup.exe |
+| `installer/macos/build-macos.sh` | Mac .app + .dmg |
+| `installer/OfficeMitra.iss` | Inno Setup for the bundled exe |
+| `installer/OfficeMitra-source.iss` | Optional Python-based source installer (developers) |
+| `installer/HOW-TO-INSTALL.txt` | Plain-text note copied into the zip / DMG / Setup |
+| `docs/*.pdf` | Client install + manuals packaged next to the app |
 
-## Customer still needs Python?
+## Developer / source install (not for customers)
 
-Yes, for v1 the installer expects **Python 3.11+** on the PC (with “Add to PATH”). The GUI installer shows a clear message if Python is missing.
-
-Future: bundle Python embeddable in the Inno package for a fully self-contained install.
+`Install-OfficeMitra.bat` and `install.ps1` still set up a Python venv for contributors.
 
 ## Support
 

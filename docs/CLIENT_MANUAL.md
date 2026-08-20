@@ -1,5 +1,7 @@
 # OfficeMitra — Client user manual
 
+![SanMitra Tech Solutions](client/images/sanmitra-logo.png)
+
 **SanMitra Synthetic Data Vault (SSDV) + OfficeMitra dashboard**
 
 | | |
@@ -77,16 +79,11 @@ OfficeMitra turns your **exported accounting journals** into clear **CEO, CFO, a
 
 ### Summary
 
-1. Unzip the SSDV folder (for example `D:\SSDV`).
-2. Install **Python 3.11+** from [python.org](https://www.python.org/downloads/) if needed — tick **Add to PATH**.
-3. Right-click **`install.ps1`** → **Run with PowerShell**.
-4. Double-click **`Start-OfficeMitra.bat`**.
-5. Browser opens **http://localhost:8501**.
+**Windows:** download **OfficeMitra-Setup.exe** → Next → Install → double-click **OfficeMitra** on the desktop.
 
-### After install — create a desktop shortcut (optional)
+**Mac:** download **OfficeMitra.dmg** → drag **OfficeMitra** to **Applications** → open it (first time: right-click → **Open**).
 
-1. Right-click `Start-OfficeMitra.bat` → **Send to** → **Desktop (create shortcut)**.
-2. Rename the shortcut to **OfficeMitra**.
+You do **not** need Python. Full steps: [CLIENT_INSTALL.md](CLIENT_INSTALL.md).
 
 ---
 
@@ -104,19 +101,21 @@ OfficeMitra turns your **exported accounting journals** into clear **CEO, CFO, a
 | Step | Action |
 | --- | --- |
 | 1 | Export day book / journal register from Tally (or Zoho / Busy / Excel) as **CSV** |
-| 2 | Start OfficeMitra (`Start-OfficeMitra.bat`) |
+| 2 | Start OfficeMitra (desktop / Applications icon) |
 | 3 | Sidebar → **Connect** → upload CSV + ledger map |
 | 4 | Set **As of** to your report date (usually month-end or year-end) |
 | 5 | Review **CEO pack** (performance), **CFO pack** (cash & aging), **Board pack** (red flags) |
 | 6 | **Download Board pack (PDF)** for the meeting |
-| 7 | Close browser; **Ctrl+C** in the black window to stop |
+| 7 | Close the browser; close the OfficeMitra status window to stop |
 
 ### Which database (vault) am I using?
 
 | Vault file | Meaning |
 | --- | --- |
-| `data\ssdv_connect.sqlite` | **Your company** — created when you use Connect |
-| `data\ssdv.sqlite` | **Demo company** (ABC Industrial) — for training only |
+| `ssdv_connect.sqlite` | **Your company** — created when you use Connect |
+| `ssdv.sqlite` | **Demo company** (ABC Industrial) — for training only |
+
+On the installed app these files live under **Windows** `%LOCALAPPDATA%\OfficeMitra\data` or **Mac** `~/Library/Application Support/OfficeMitra/data`.
 
 In the sidebar **Vault** dropdown, pick the file that matches your company.
 
@@ -140,6 +139,97 @@ Use the sidebar **Screen** radio buttons.
 | --- | --- |
 | **Download full report (HTML)** | Printable CEO-style report — open in Edge, **Ctrl+P** to save as PDF |
 | **Download Board pack (PDF)** | A4 Board summary — red flags, scorecard, benchmarks, cash forecast, what-if |
+
+---
+
+### 5.1 CEO Pack — Business Health & Operational Levers
+
+#### Executive KPI Scorecards
+![CEO KPI Tiles](client/images/ceo-01-kpi-tiles.png)
+
+#### Top Overdue Debtors Ranking
+![CEO Overdue Customers](client/images/ceo-02-overdue-customers.png)
+
+#### Governance Policy Benchmarks
+![CEO Benchmarks](client/images/ceo-03-benchmarks.png)
+
+#### What-If Scenarios (Simulation Levers)
+![CEO What-If Scenarios](client/images/ceo-04-what-if.png)
+
+#### Sales, Margin & Cash Movement Trajectories
+![CEO Charts](client/images/ceo-05-charts.png)
+
+#### Plain-English AI Why-Notes & Copilot
+![CEO Why Notes and AI Copilot](client/images/ceo-06-why-ai.png)
+
+---
+
+### 5.2 CFO Pack — Cash Forecast & Working Capital
+
+#### Liquidity & Balance Sheet KPI Tiles
+![CFO KPI Tiles](client/images/cfo-01-kpi-tiles.png)
+
+#### 30 / 60 / 90-Day Predictive Cash Forecast
+![CFO Cash Forecast](client/images/cfo-02-cash-forecast.png)
+
+#### AR & AP Aging Distribution (Donuts & Buckets)
+![CFO Aging Distribution](client/images/cfo-03-aging-donuts.png)
+
+#### Overdue Debtors & Vendor Exposure
+![CFO Overdue and Vendor Exposure](client/images/cfo-04-overdue-and-vendors.png)
+
+#### Cash Receipts vs. Vendor Payments & Bank Position
+![CFO Cash Receipts vs Payments and Bank Position](client/images/cfo-05-cash-receipts-payments.png)
+
+#### Cash Cycle Days (DSO / DIO / DPO / CCC) & GST Balances
+![CFO Cash Cycle and GST](client/images/cfo-06-cash-cycle-gst.png)
+
+#### Automated Telemetry Notes
+![CFO Telemetry Notes](client/images/cfo-07-telemetry-notes.png)
+
+---
+
+### 5.3 Board Pack — Governance & Risk Signals
+
+#### Red Flag Exceptions & Balance Sheet Summary
+![Board Red Flags and Balance Sheet](client/images/board-01-red-flags.png)
+
+#### Balance Sheet & Working Capital Parts
+![Board Balance Sheet Charts](client/images/board-02-balance-sheet-charts.png)
+
+#### Enterprise Policy Scorecard (Hold / Breach / Warning)
+![Board Policy Scorecard](client/images/board-03-policy-scorecard.png)
+
+#### Benchmarks vs. Governance Standards
+![Board Benchmarks](client/images/board-04-benchmarks.png)
+
+#### Top Customer & Vendor Concentration Disclosures
+![Board Concentration Tables](client/images/board-05-concentration-tables.png)
+
+---
+
+### 5.4 Chart Pack — 12-Month Visual Trajectories
+
+#### Activity Trends & Sales vs. COGS
+![Chart Pack Activity and Sales vs COGS](client/images/chart-01-activity-sales-cogs.png)
+
+#### Cash Movement & Monthly Gross Margin
+![Chart Pack Cash Movement and Margin](client/images/chart-02-cash-movement-margin.png)
+
+#### P&L Mix & Trailing Profit Waterfall
+![Chart Pack PL Mix and Profit](client/images/chart-03-pl-mix-monthly-profit.png)
+
+---
+
+### 5.5 Connect Screen — Journal CSV Ingestion
+
+#### Data Source Selection & File Upload Wizard
+![Connect Data Source](client/images/connect-01-data-source.png)
+
+---
+
+### 5.6 Executive MIS & AI Copilot Overview
+![OfficeMitra AI / SSDV Infographic & Executive Overview](client/images/officemitra-infographic.png)
 
 ---
 
@@ -215,13 +305,13 @@ Shortcut: click **Use ABC year-end 31 Mar 2026** when viewing the demo vault onl
 
 Open **CFO pack** → scroll to **Customer & vendor intelligence** → **Top overdue customers**. This list is ranked from **posted** AR aging (recommend-only; OfficeMitra does not send reminders).
 
-### Tip 4 — Keep the black window open
+### Tip 4 — Keep the OfficeMitra window open
 
-While using the browser dashboard, the PowerShell window running `Start-OfficeMitra.bat` must stay open. Closing it stops OfficeMitra.
+While you use the dashboard in the browser, keep the small **OfficeMitra is running** window open. Closing it stops the app.
 
 ### Tip 5 — Refresh books without reinstalling
 
-New month export → **Connect** → tick **Replace books** → upload → **Extract**. No need to run `install.ps1` again.
+New month export → **Connect** → tick **Replace books** → upload → **Extract**. You do not need to run the installer again.
 
 ### Tip 6 — Print a full-page report
 
@@ -253,17 +343,15 @@ More detail: [USER_MANUAL.md](USER_MANUAL.md) section 9.
 
 | What you see | What to do |
 | --- | --- |
-| **OfficeMitra is not installed yet** | Run `install.ps1` first |
-| **Python not found** | Install Python 3.11+ from python.org; tick **Add to PATH**; run `install.ps1` again |
-| **Streamlit is not installed** | Do not use global Python. Run `install.ps1` or use `Start-OfficeMitra.bat` |
+| **Windows SmartScreen** | **More info** → **Run anyway** (file is from SanMitra) |
+| **Mac “unidentified developer”** | Right-click **OfficeMitra** → **Open** (once) |
 | **Browser does not open** | Manually open **http://localhost:8501** |
-| **Blank page / cannot connect** | Check the black window is still open; restart `Start-OfficeMitra.bat` |
+| **Blank page / cannot connect** | Check the OfficeMitra status window is still open; quit and launch again |
 | **Wrong company numbers** | Sidebar **Vault** — pick `ssdv_connect.sqlite` for your data, not demo `ssdv.sqlite` |
 | **Sales zero / revenue down 100%** | **As of** date is wrong — use last date in your CSV |
 | **Unmapped ledger** | Add that ledger name to your **ledger map** CSV |
 | **Unbalanced voucher** | One voucher_id has debits ≠ credits — fix in export or source ERP |
-| **Connect vault already has data** | Tick **Replace books** or use `--force` in CLI |
-| **Script blocked by Windows** | Run PowerShell as admin once: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` — or use **Run with PowerShell** on `install.ps1` |
+| **Connect vault already has data** | Tick **Replace books** |
 | **Ask Why does nothing** | Ollama is optional — install separately; KPI packs work without it |
 | **Edge screenshot cuts off page** | Use **Download full report (HTML)** or **Board pack (PDF)** |
 
@@ -275,15 +363,15 @@ Still stuck? Email **contact@sanmitratech.in** with screenshots.
 
 ### Do I need internet after install?
 
-**No**, for normal KPI packs and Connect. Internet is needed only for first-time install (Python packages) and optional Ollama model download.
+**No**, for normal KPI packs and Connect. Internet is needed only to download the installer the first time, and for optional Ollama (Ask Why).
 
 ### Does SanMitra see my books?
 
-**No**, unless you email files or screenshots to support. Everything runs locally in your SSDV folder.
+**No**, unless you email files or screenshots to support. Everything runs locally on your PC.
 
 ### Can I install on multiple PCs?
 
-**Yes.** Install on each PC separately. Copy `data\ssdv_connect.sqlite` to move books between machines (same company vault file).
+**Yes.** Install on each PC separately. Copy `ssdv_connect.sqlite` from the data folder (see [CLIENT_INSTALL.md](CLIENT_INSTALL.md)) to move books between machines.
 
 ### Does it work with Tally Prime?
 
@@ -295,15 +383,15 @@ Still stuck? Email **contact@sanmitratech.in** with screenshots.
 
 ### Can my CA use the same install?
 
-**Yes.** Share the SSDV folder or just the vault file + exports. Many CAs use **CFO pack** and **Board PDF**.
+**Yes.** Share the vault file or sit together on one PC. Many CAs use **CFO pack** and **Board PDF**.
 
 ### What file should I back up?
 
-`data\ssdv_connect.sqlite` — this is your connected company vault.
+`ssdv_connect.sqlite` in the OfficeMitra data folder (Windows: `%LOCALAPPDATA%\OfficeMitra\data`, Mac: `~/Library/Application Support/OfficeMitra/data`).
 
 ### Is there a Mac version?
 
-The app is Python-based and can run on Mac/Linux with manual setup. This manual covers **Windows**; contact SanMitra for Mac install assistance.
+**Yes.** Download **OfficeMitra.dmg**, drag the app to Applications, then open it. First launch on an unsigned build: right-click → **Open**. See [CLIENT_INSTALL.md](CLIENT_INSTALL.md).
 
 ### What is the demo ABC company?
 

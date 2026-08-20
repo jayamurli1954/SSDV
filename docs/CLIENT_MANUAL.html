@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLIENT_MANUAL - OfficeMitra SSDV</title>
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.65;
+  color: #1e293b;
+  max-width: 960px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  background: #f8fafc;
+}
+.container {
+  background: #ffffff;
+  padding: 2.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+h1 { color: #0f172a; font-size: 2rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }
+h2 { color: #0f172a; font-size: 1.5rem; margin-top: 2rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.3rem; }
+h3 { color: #1e293b; font-size: 1.25rem; margin-top: 1.5rem; }
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.5rem auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+  border: 1px solid #e2e8f0;
+}
+table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.95rem; }
+th, td { border: 1px solid #e2e8f0; padding: 0.65rem 0.9rem; text-align: left; }
+th { background: #f1f5f9; font-weight: 600; color: #0f172a; }
+tr:nth-child(even) { background: #f8fafc; }
+code { background: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: Consolas, monospace; font-size: 0.9em; color: #0f172a; }
+pre { background: #0f172a; color: #f8fafc; padding: 1.2rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: transparent; color: inherit; padding: 0; }
+hr { border: 0; height: 1px; background: #e2e8f0; margin: 2rem 0; }
+a { color: #0284c7; text-decoration: none; }
+a:hover { text-decoration: underline; }
+li { margin-bottom: 0.3rem; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>OfficeMitra — Client user manual</h1>
+<p><img src="client/images/sanmitra-logo.png" alt="SanMitra Tech Solutions"></p>
+<p><strong>SanMitra Synthetic Data Vault (SSDV) + OfficeMitra dashboard</strong></p>
+<table>
+<tr><th>**Product**</th><th>OfficeMitra — AI business analyst for SMEs (read-only MIS from posted journals)</th></tr>
+<tr><td>**Publisher**</td><td>SanMitra Technologies</td></tr>
+<tr><td>**Website**</td><td>[https://www.sanmitratech.in](https://www.sanmitratech.in)</td></tr>
+<tr><td>**Support email**</td><td>[contact@sanmitratech.in](mailto:contact@sanmitratech.in)</td></tr>
+</table>
+<hr>
+<h2>Table of contents</h2>
+<p>1. <a href="#1-welcome">Welcome</a></p>
+<p>2. <a href="#2-what-officemitra-does">What OfficeMitra does</a></p>
+<p>3. <a href="#3-install-on-your-pc">Install on your PC</a></p>
+<p>4. <a href="#4-daily-workflow">Daily workflow</a></p>
+<p>5. <a href="#5-the-five-screens-packs">The five screens (packs)</a></p>
+<p>6. <a href="#6-connect-your-accounting-software">Connect your accounting software</a></p>
+<p>7. <a href="#7-workflow-tips">Workflow tips</a></p>
+<p>8. <a href="#8-glossary-plain-english">Glossary (plain English)</a></p>
+<p>9. <a href="#9-common-errors-and-fixes">Common errors and fixes</a></p>
+<p>10. <a href="#10-faqs">FAQs</a></p>
+<p>11. <a href="#11-optional-ask-why-ai">Optional: Ask Why (AI)</a></p>
+<p>12. <a href="#12-backup-and-safety">Backup and safety</a></p>
+<p>13. <a href="#13-support">Support</a></p>
+<hr>
+<h2>1. Welcome</h2>
+<p>OfficeMitra turns your <strong>exported accounting journals</strong> into clear <strong>CEO, CFO, and Board</strong> views — KPI tiles, charts, red flags, cash forecast, customer/vendor lists, and a downloadable Board PDF.</p>
+<p><strong>Important:</strong> OfficeMitra runs <strong>on your computer</strong>. Your books are stored in a local file (<code>data\ssdv_connect.sqlite</code>). SanMitra does not receive your data unless <strong>you</strong> choose to send an export or screenshot for support.</p>
+<p><img src="client/images/workflow-overview.png" alt="How OfficeMitra works"></p>
+<hr>
+<h2>2. What OfficeMitra does</h2>
+<h3>OfficeMitra **is**</h3>
+<li>A **read-only** analytics tool on top of double-entry journals</li>
+<li>A way to see **CEO / CFO / Board** packs without building spreadsheets</li>
+<li>A **local** app — works after install even without internet (except optional AI)</li>
+<li>Compatible with exports from **Tally, Zoho Books, Busy, Excel**, and similar tools (via CSV)</li>
+<h3>OfficeMitra **is not**</h3>
+<li>Tally, Zoho, Busy, or MitraBooks — it does not replace your ERP</li>
+<li>A live login to your accounting software</li>
+<li>Something that **changes** your books or posts vouchers back to your ERP</li>
+<li>A statutory books-of-record replacement</li>
+<h3>Who uses which screen?</h3>
+<table>
+<tr><th>Role</th><th>Start here</th><th>Why</th></tr>
+<tr><td>**Owner / CEO**</td><td>CEO pack</td><td>Revenue, margin, cash, collections, what-if ideas</td></tr>
+<tr><td>**Finance / CA / CFO**</td><td>CFO pack</td><td>DSO, aging, GST, bank, 30/60/90 cash forecast, vendors</td></tr>
+<tr><td>**Director / Board**</td><td>Board pack</td><td>Red flags, policy scorecard, benchmarks, PDF for meetings</td></tr>
+<tr><td>**Analyst**</td><td>Chart pack</td><td>Trends and aging charts</td></tr>
+<tr><td>**First-time setup**</td><td>Connect</td><td>Upload your CSV export</td></tr>
+</table>
+<p><img src="client/images/screens-overview.png" alt="OfficeMitra screens"></p>
+<hr>
+<h2>3. Install on your PC</h2>
+<p><strong>Quick guide:</strong> <a href="CLIENT_INSTALL.md">CLIENT_INSTALL.md</a></p>
+<p><img src="client/images/install-steps.png" alt="Install steps"></p>
+<h3>Summary</h3>
+<p><strong>Windows:</strong> download <strong>OfficeMitra-Setup.exe</strong> → Next → Install → double-click <strong>OfficeMitra</strong> on the desktop.</p>
+<p><strong>Mac:</strong> download <strong>OfficeMitra.dmg</strong> → drag <strong>OfficeMitra</strong> to <strong>Applications</strong> → open it (first time: right-click → <strong>Open</strong>).</p>
+<p>You do <strong>not</strong> need Python. Full steps: <a href="CLIENT_INSTALL.md">CLIENT_INSTALL.md</a>.</p>
+<hr>
+<h2>4. Daily workflow</h2>
+<pre><code>
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
+│ Export journals │ ──► │ Connect (upload) │ ──► │ CEO / CFO / Board   │
+│ from ERP/Excel  │     │ in OfficeMitra   │     │ packs + Board PDF   │
+└─────────────────┘     └──────────────────┘     └─────────────────────┘
+</code></pre>
+<h3>Typical month-end cycle</h3>
+<table>
+<tr><th>Step</th><th>Action</th></tr>
+<tr><td>1</td><td>Export day book / journal register from Tally (or Zoho / Busy / Excel) as **CSV**</td></tr>
+<tr><td>2</td><td>Start OfficeMitra (desktop / Applications icon)</td></tr>
+<tr><td>3</td><td>Sidebar → **Connect** → upload CSV + ledger map</td></tr>
+<tr><td>4</td><td>Set **As of** to your report date (usually month-end or year-end)</td></tr>
+<tr><td>5</td><td>Review **CEO pack** (performance), **CFO pack** (cash & aging), **Board pack** (red flags)</td></tr>
+<tr><td>6</td><td>**Download Board pack (PDF)** for the meeting</td></tr>
+<tr><td>7</td><td>Close the browser; close the OfficeMitra status window to stop</td></tr>
+</table>
+<h3>Which database (vault) am I using?</h3>
+<table>
+<tr><th>Vault file</th><th>Meaning</th></tr>
+<tr><td>`ssdv_connect.sqlite`</td><td>**Your company** — created when you use Connect</td></tr>
+<tr><td>`ssdv.sqlite`</td><td>**Demo company** (ABC Industrial) — for training only</td></tr>
+</table>
+<p>On the installed app these files live under <strong>Windows</strong> <code>%LOCALAPPDATA%\OfficeMitra\data</code> or <strong>Mac</strong> <code>~/Library/Application Support/OfficeMitra/data</code>.</p>
+<p>In the sidebar <strong>Vault</strong> dropdown, pick the file that matches your company.</p>
+<hr>
+<h2>5. The five screens (packs)</h2>
+<p>Use the sidebar <strong>Screen</strong> radio buttons.</p>
+<table>
+<tr><th>Screen</th><th>What you see</th></tr>
+<tr><td>**CEO pack**</td><td>KPI tiles, AI notes, top overdue customers, benchmarks, what-if scenarios, sales vs COGS, profit charts, Ask Why</td></tr>
+<tr><td>**CFO pack**</td><td>Cash 30/60/90 forecast, DSO/DIO/DPO/CCC, GST, bank position, AR/AP aging, top customers & vendors</td></tr>
+<tr><td>**Board pack**</td><td>Red flags first, balance sheet tiles, policy scorecard, benchmarks, top party tables</td></tr>
+<tr><td>**Chart pack**</td><td>Activity, cash movement, margin, P&L mix, monthly profit, aging charts</td></tr>
+<tr><td>**Connect**</td><td>Upload journal CSV + ledger map (read-only extract)</td></tr>
+</table>
+<h3>Downloads on every pack screen</h3>
+<table>
+<tr><th>Button</th><th>Output</th></tr>
+<tr><td>**Download full report (HTML)**</td><td>Printable CEO-style report — open in Edge, **Ctrl+P** to save as PDF</td></tr>
+<tr><td>**Download Board pack (PDF)**</td><td>A4 Board summary — red flags, scorecard, benchmarks, cash forecast, what-if</td></tr>
+</table>
+<hr>
+<h3>5.1 CEO Pack — Business Health & Operational Levers</h3>
+<h4>Executive KPI Scorecards</h4>
+<p><img src="client/images/ceo-01-kpi-tiles.png" alt="CEO KPI Tiles"></p>
+<h4>Top Overdue Debtors Ranking</h4>
+<p><img src="client/images/ceo-02-overdue-customers.png" alt="CEO Overdue Customers"></p>
+<h4>Governance Policy Benchmarks</h4>
+<p><img src="client/images/ceo-03-benchmarks.png" alt="CEO Benchmarks"></p>
+<h4>What-If Scenarios (Simulation Levers)</h4>
+<p><img src="client/images/ceo-04-what-if.png" alt="CEO What-If Scenarios"></p>
+<h4>Sales, Margin & Cash Movement Trajectories</h4>
+<p><img src="client/images/ceo-05-charts.png" alt="CEO Charts"></p>
+<h4>Plain-English AI Why-Notes & Copilot</h4>
+<p><img src="client/images/ceo-06-why-ai.png" alt="CEO Why Notes and AI Copilot"></p>
+<hr>
+<h3>5.2 CFO Pack — Cash Forecast & Working Capital</h3>
+<h4>Liquidity & Balance Sheet KPI Tiles</h4>
+<p><img src="client/images/cfo-01-kpi-tiles.png" alt="CFO KPI Tiles"></p>
+<h4>30 / 60 / 90-Day Predictive Cash Forecast</h4>
+<p><img src="client/images/cfo-02-cash-forecast.png" alt="CFO Cash Forecast"></p>
+<h4>AR & AP Aging Distribution (Donuts & Buckets)</h4>
+<p><img src="client/images/cfo-03-aging-donuts.png" alt="CFO Aging Distribution"></p>
+<h4>Overdue Debtors & Vendor Exposure</h4>
+<p><img src="client/images/cfo-04-overdue-and-vendors.png" alt="CFO Overdue and Vendor Exposure"></p>
+<h4>Cash Receipts vs. Vendor Payments & Bank Position</h4>
+<p><img src="client/images/cfo-05-cash-receipts-payments.png" alt="CFO Cash Receipts vs Payments and Bank Position"></p>
+<h4>Cash Cycle Days (DSO / DIO / DPO / CCC) & GST Balances</h4>
+<p><img src="client/images/cfo-06-cash-cycle-gst.png" alt="CFO Cash Cycle and GST"></p>
+<h4>Automated Telemetry Notes</h4>
+<p><img src="client/images/cfo-07-telemetry-notes.png" alt="CFO Telemetry Notes"></p>
+<hr>
+<h3>5.3 Board Pack — Governance & Risk Signals</h3>
+<h4>Red Flag Exceptions & Balance Sheet Summary</h4>
+<p><img src="client/images/board-01-red-flags.png" alt="Board Red Flags and Balance Sheet"></p>
+<h4>Balance Sheet & Working Capital Parts</h4>
+<p><img src="client/images/board-02-balance-sheet-charts.png" alt="Board Balance Sheet Charts"></p>
+<h4>Enterprise Policy Scorecard (Hold / Breach / Warning)</h4>
+<p><img src="client/images/board-03-policy-scorecard.png" alt="Board Policy Scorecard"></p>
+<h4>Benchmarks vs. Governance Standards</h4>
+<p><img src="client/images/board-04-benchmarks.png" alt="Board Benchmarks"></p>
+<h4>Top Customer & Vendor Concentration Disclosures</h4>
+<p><img src="client/images/board-05-concentration-tables.png" alt="Board Concentration Tables"></p>
+<hr>
+<h3>5.4 Chart Pack — 12-Month Visual Trajectories</h3>
+<h4>Activity Trends & Sales vs. COGS</h4>
+<p><img src="client/images/chart-01-activity-sales-cogs.png" alt="Chart Pack Activity and Sales vs COGS"></p>
+<h4>Cash Movement & Monthly Gross Margin</h4>
+<p><img src="client/images/chart-02-cash-movement-margin.png" alt="Chart Pack Cash Movement and Margin"></p>
+<h4>P&L Mix & Trailing Profit Waterfall</h4>
+<p><img src="client/images/chart-03-pl-mix-monthly-profit.png" alt="Chart Pack PL Mix and Profit"></p>
+<hr>
+<h3>5.5 Connect Screen — Journal CSV Ingestion</h3>
+<h4>Data Source Selection & File Upload Wizard</h4>
+<p><img src="client/images/connect-01-data-source.png" alt="Connect Data Source"></p>
+<hr>
+<h3>5.6 Executive MIS & AI Copilot Overview</h3>
+<p><img src="client/images/officemitra-infographic.png" alt="OfficeMitra AI / SSDV Infographic & Executive Overview"></p>
+<hr>
+<h2>6. Connect your accounting software</h2>
+<p>OfficeMitra does <strong>not</strong> log into your ERP. You <strong>export</strong> a CSV and upload it.</p>
+<h3>Tally (typical path)</h3>
+<p>1. In Tally: <strong>Display → Account Books → Day Book</strong> (or Journal register).</p>
+<p>2. Export to <strong>Excel/CSV</strong>.</p>
+<p>3. Ensure <strong>one row per debit or credit line</strong> (not one row per voucher total).</p>
+<p>4. Map ledger names using <code>ledger_map.csv</code> (see examples folder).</p>
+<h3>Zoho Books / Busy</h3>
+<p>1. Export <strong>journal</strong> or <strong>day book</strong> report to CSV.</p>
+<p>2. Same column rules as below.</p>
+<h3>Required CSV shape (simple view)</h3>
+<p>Your file should look like this (column names can use common aliases):</p>
+<pre><code>
+voucher_id, date, voucher_type, account, debit, credit, party, narration
+</code></pre>
+<li>Each **voucher_id** must **balance** (total debits = total credits).</li>
+<li>**date** format: `YYYY-MM-DD` (example `2025-03-31`).</li>
+<li>**account** = ledger name from your ERP (mapped via ledger map file).</li>
+<p>Sample files: <code>examples\generic_ingest\journals.csv</code> and <code>ledger_map.csv</code>.</p>
+<h3>Ledger map (strongly recommended)</h3>
+<p>A second small CSV tells OfficeMitra how your ledger names map to account codes:</p>
+<pre><code>
+source,account_code
+HDFC Bank,111000
+Sundry Debtors,120000
+Sales Account,410000
+</code></pre>
+<p>Without a map, every account name in your export must already be a valid code.</p>
+<h3>In the Connect screen</h3>
+<p>1. <strong>Journal CSV</strong> — required  </p>
+<p>2. <strong>Ledger map</strong> — recommended  </p>
+<p>3. <strong>Company name</strong> — appears on reports  </p>
+<p>4. <strong>Replace books</strong> — tick when reloading a full fresh export  </p>
+<p>5. Click <strong>Extract and post into SSDV</strong>  </p>
+<p>6. Switch to <strong>CEO pack</strong> and set <strong>As of</strong> date  </p>
+<hr>
+<h2>7. Workflow tips</h2>
+<h3>Tip 1 — Set the correct **As of** date</h3>
+<p>The dashboard shows figures <strong>as at</strong> the date you pick. If you choose a date <strong>after</strong> your year-end with no transactions in the new year, sales may show <strong>zero</strong> or “revenue decreased 100%”. Use your <strong>actual last voucher date</strong> (for example <strong>31 Mar 2026</strong> for year-end).</p>
+<p>Shortcut: click <strong>Use ABC year-end 31 Mar 2026</strong> when viewing the demo vault only.</p>
+<h3>Tip 2 — CEO Monday, CFO Wednesday, Board Friday</h3>
+<li>**Monday:** CEO pack — sales, margin, collections, what-if</li>
+<li>**Mid-week:** CFO pack — cash forecast, aging, GST, top overdue customers</li>
+<li>**Before board meeting:** Board pack + **Download Board pack (PDF)**</li>
+<h3>Tip 3 — Collection action from CFO pack</h3>
+<p>Open <strong>CFO pack</strong> → scroll to <strong>Customer & vendor intelligence</strong> → <strong>Top overdue customers</strong>. This list is ranked from <strong>posted</strong> AR aging (recommend-only; OfficeMitra does not send reminders).</p>
+<h3>Tip 4 — Keep the OfficeMitra window open</h3>
+<p>While you use the dashboard in the browser, keep the small <strong>OfficeMitra is running</strong> window open. Closing it stops the app.</p>
+<h3>Tip 5 — Refresh books without reinstalling</h3>
+<p>New month export → <strong>Connect</strong> → tick <strong>Replace books</strong> → upload → <strong>Extract</strong>. You do not need to run the installer again.</p>
+<h3>Tip 6 — Print a full-page report</h3>
+<p>Browser screenshots often cut off content. Instead: <strong>Download full report (HTML)</strong> → open file in Edge → <strong>Ctrl+P</strong> → Save as PDF.</p>
+<hr>
+<h2>8. Glossary (plain English)</h2>
+<table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>**AR**</td><td>Money customers owe you (receivables)</td></tr>
+<tr><td>**AP**</td><td>Money you owe vendors (payables)</td></tr>
+<tr><td>**DSO**</td><td>Average days to collect from customers — lower is better</td></tr>
+<tr><td>**DPO**</td><td>Average days you take to pay vendors</td></tr>
+<tr><td>**CCC**</td><td>Cash conversion cycle — how long cash is tied up in operations</td></tr>
+<tr><td>**Gross margin**</td><td>Sales minus cost of goods sold, as a %</td></tr>
+<tr><td>**Collection efficiency**</td><td>Receipts ÷ sales — are you collecting what you bill?</td></tr>
+<tr><td>**AR 90+**</td><td>Receivables overdue more than 90 days</td></tr>
+<tr><td>**Red flag**</td><td>Board-level exception (policy breach, negative cash, etc.)</td></tr>
+<tr><td>**What-if**</td><td>Recommendation only — “if DSO improved…” — books are **not** changed</td></tr>
+<tr><td>**Vault**</td><td>The SQLite file holding posted journals for one book</td></tr>
+</table>
+<p>More detail: <a href="USER_MANUAL.md">USER_MANUAL.md</a> section 9.</p>
+<hr>
+<h2>9. Common errors and fixes</h2>
+<table>
+<tr><th>What you see</th><th>What to do</th></tr>
+<tr><td>**Windows SmartScreen**</td><td>**More info** → **Run anyway** (file is from SanMitra)</td></tr>
+<tr><td>**Mac “unidentified developer”**</td><td>Right-click **OfficeMitra** → **Open** (once)</td></tr>
+<tr><td>**Browser does not open**</td><td>Manually open **http://localhost:8501**</td></tr>
+<tr><td>**Blank page / cannot connect**</td><td>Check the OfficeMitra status window is still open; quit and launch again</td></tr>
+<tr><td>**Wrong company numbers**</td><td>Sidebar **Vault** — pick `ssdv_connect.sqlite` for your data, not demo `ssdv.sqlite`</td></tr>
+<tr><td>**Sales zero / revenue down 100%**</td><td>**As of** date is wrong — use last date in your CSV</td></tr>
+<tr><td>**Unmapped ledger**</td><td>Add that ledger name to your **ledger map** CSV</td></tr>
+<tr><td>**Unbalanced voucher**</td><td>One voucher_id has debits ≠ credits — fix in export or source ERP</td></tr>
+<tr><td>**Connect vault already has data**</td><td>Tick **Replace books**</td></tr>
+<tr><td>**Ask Why does nothing**</td><td>Ollama is optional — install separately; KPI packs work without it</td></tr>
+<tr><td>**Edge screenshot cuts off page**</td><td>Use **Download full report (HTML)** or **Board pack (PDF)**</td></tr>
+</table>
+<p>Still stuck? Email <strong>contact@sanmitratech.in</strong> with screenshots.</p>
+<hr>
+<h2>10. FAQs</h2>
+<h3>Do I need internet after install?</h3>
+<p><strong>No</strong>, for normal KPI packs and Connect. Internet is needed only to download the installer the first time, and for optional Ollama (Ask Why).</p>
+<h3>Does SanMitra see my books?</h3>
+<p><strong>No</strong>, unless you email files or screenshots to support. Everything runs locally on your PC.</p>
+<h3>Can I install on multiple PCs?</h3>
+<p><strong>Yes.</strong> Install on each PC separately. Copy <code>ssdv_connect.sqlite</code> from the data folder (see <a href="CLIENT_INSTALL.md">CLIENT_INSTALL.md</a>) to move books between machines.</p>
+<h3>Does it work with Tally Prime?</h3>
+<p><strong>Yes</strong>, via CSV export + Connect. Native live Tally API is not required.</p>
+<h3>Will it change my Tally / Zoho data?</h3>
+<p><strong>Never.</strong> SSDV is read-only. It only reads the CSV you upload.</p>
+<h3>Can my CA use the same install?</h3>
+<p><strong>Yes.</strong> Share the vault file or sit together on one PC. Many CAs use <strong>CFO pack</strong> and <strong>Board PDF</strong>.</p>
+<h3>What file should I back up?</h3>
+<p><code>ssdv_connect.sqlite</code> in the OfficeMitra data folder (Windows: <code>%LOCALAPPDATA%\OfficeMitra\data</code>, Mac: <code>~/Library/Application Support/OfficeMitra/data</code>).</p>
+<h3>Is there a Mac version?</h3>
+<p><strong>Yes.</strong> Download <strong>OfficeMitra.dmg</strong>, drag the app to Applications, then open it. First launch on an unsigned build: right-click → <strong>Open</strong>. See <a href="CLIENT_INSTALL.md">CLIENT_INSTALL.md</a>.</p>
+<h3>What is the demo ABC company?</h3>
+<p><code>data\ssdv.sqlite</code> is a generated training company (ABC Industrial Supplies). Use it to explore features before loading your own CSV.</p>
+<h3>What-if scenarios — are they real forecasts?</h3>
+<p>They are <strong>recommend-only</strong> calculations from <strong>posted</strong> facts (for example “if DSO were 120 days…”). They do not change journals and are not a substitute for a full budget model.</p>
+<h3>Industry benchmarks?</h3>
+<p>OfficeMitra compares to <strong>SSDV policy bands</strong> and an optional <strong>ABC baseline</strong> demo peer — not a national industry survey.</p>
+<hr>
+<h2>11. Optional: Ask Why (AI)</h2>
+<p><strong>Ask Why</strong> (CEO pack chips and typed questions) uses <strong>local Ollama</strong> with a language model. It is <strong>optional</strong> — all KPIs, charts, PDFs, and party lists work without AI.</p>
+<p>To enable:</p>
+<p>1. Install <a href="https://ollama.com/">Ollama</a> on the same PC.</p>
+<p>2. Run model: <code>llama3.1:8b</code> (requires sufficient RAM).</p>
+<p>3. Use chips like “Why did profit fall?” on the CEO pack.</p>
+<p>The AI may only use numbers from your posted books — it must not invent customers or causes.</p>
+<hr>
+<h2>12. Backup and safety</h2>
+<table>
+<tr><th>Do</th><th>Don't</th></tr>
+<tr><td>Back up `data\*.sqlite` regularly</td><td>Run `init --force` on a vault unless SanMitra/CA tells you to</td></tr>
+<tr><td>Keep exports (CSV) in a dated folder</td><td>Paste PowerShell **output** back as commands</td></tr>
+<tr><td>Use **Replace books** for full reloads</td><td>Share vault files over unsecured channels without consent</td></tr>
+<tr><td>Contact support before reinstalling if unsure</td><td>Install SSDV into **global** Python (breaks other tools)</td></tr>
+</table>
+<hr>
+<h2>13. Support</h2>
+<p><strong>SanMitra Technologies</strong></p>
+<table>
+<tr><th>Channel</th><th>Details</th></tr>
+<tr><td>**Email**</td><td>[contact@sanmitratech.in](mailto:contact@sanmitratech.in)</td></tr>
+<tr><td>**Website**</td><td>[https://www.sanmitratech.in](https://www.sanmitratech.in)</td></tr>
+</table>
+<h3>When contacting support, please send</h3>
+<p>1. Your <strong>company name</strong> (as entered in Connect)  </p>
+<p>2. <strong>Windows version</strong> (Settings → System → About)  </p>
+<p>3. <strong>What you tried</strong> (install, Connect, which screen)  </p>
+<p>4. <strong>Screenshot</strong> of the error or sidebar (vault + as-of date visible)  </p>
+<p>5. Whether you use <strong>Tally / Zoho / Busy / Excel</strong>  </p>
+<p>We typically respond with step-by-step guidance for install, CSV mapping, and dashboard use.</p>
+<h3>Related documents</h3>
+<table>
+<tr><th>Document</th><th>Audience</th></tr>
+<tr><td>[CLIENT_INSTALL.md](CLIENT_INSTALL.md)</td><td>Short install checklist</td></tr>
+<tr><td>[USER_MANUAL.md](USER_MANUAL.md)</td><td>Full technical reference (CLI, CSV spec, developers)</td></tr>
+<tr><td>[BLUEPRINT.md](BLUEPRINT.md)</td><td>Product rules and accounting design</td></tr>
+</table>
+<hr>
+<p>*© SanMitra Technologies. OfficeMitra / SSDV — read-only analytics from posted journals.*</p>
+</div>
+</body>
+</html>

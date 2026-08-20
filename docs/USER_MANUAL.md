@@ -1,5 +1,7 @@
 # SSDV user manual
 
+![SanMitra Tech Solutions](client/images/sanmitra-logo.png)
+
 SanMitra Synthetic Data Vault (SSDV) is a **journal-first** tool. It either **generates** internally consistent Indian trading-company books, or **reads** journals exported from another application, then shows **CEO / CFO / Board KPIs**, charts, and AI notes.
 
 **Client install (non-technical):** [CLIENT_INSTALL.md](CLIENT_INSTALL.md) · **Client manual (FAQs, support):** [CLIENT_MANUAL.md](CLIENT_MANUAL.md) · Support: **contact@sanmitratech.in** · [sanmitratech.in](https://www.sanmitratech.in)
@@ -27,7 +29,11 @@ Two kinds of data:
 | Generated books | ABC Industrial Supplies Pvt Ltd, FY 2023-24 to 2025-26 | `data\ssdv.sqlite` | **2026-03-31** |
 | Connected books | Your CSV day book / journal register | `data\ssdv_connect.sqlite` | Last date in that CSV (sample: **2024-04-30**) |
 
+![How OfficeMitra SSDV Works](client/images/workflow-overview.png)
+
 ## 2. Install (once, PowerShell)
+
+![Installation Steps](client/images/install-steps.png)
 
 Use **only** the project virtual environment.
 
@@ -106,6 +112,8 @@ Sidebar: vault `ssdv_connect.sqlite`, as of **2024-04-30**, screen **CEO**.
 
 ## 5. Streamlit screens
 
+![OfficeMitra Dashboard Screens Overview](client/images/screens-overview.png)
+
 | Screen | What you see |
 | --- | --- |
 | **CEO** | 14 KPI tiles, **top overdue customers**, benchmarks vs SSDV policy, **what-if scenarios (recommend-only)**, sales vs COGS, gross margin, collections, P&L mix, monthly profit, why-notes, why chips, optional typed question |
@@ -118,7 +126,128 @@ Sidebar: vault `ssdv_connect.sqlite`, as of **2024-04-30**, screen **CEO**.
 
 All numbers come from **posted journals**. Unbalanced books never get a chart.
 
+### 5.1 CEO Pack Dashboard
+
+The **CEO Pack** provides executive visibility into overall business health, revenue momentum, liquidity, and operational levers:
+
+#### Executive KPI Tiles & Performance Ribbon
+14 primary KPI scorecards tracking revenue, gross profit, cash position, working capital, inventory, and collection efficiency.
+![CEO KPI Tiles](client/images/ceo-01-kpi-tiles.png)
+
+#### Customer & Vendor Intelligence (Top Overdue Debtor Ranking)
+Granular breakdown of customer receivables ranked by aging risk (AR 90+), unaged balances, and payment delays.
+![CEO Top Overdue Customers](client/images/ceo-02-overdue-customers.png)
+
+#### SSDV Policy Benchmarks
+Compares actual company performance against governance policy thresholds (DSO under 120 days, current ratio, quick ratio, stock holding).
+![CEO Benchmarks](client/images/ceo-03-benchmarks.png)
+
+#### What-If Scenarios & Recommendation Levers
+Interactive simulation cards demonstrating potential cash and profit gains from operational improvements (e.g. reducing DSO to 120 days, 15% sales increase).
+![CEO What-If Scenarios](client/images/ceo-04-what-if.png)
+
+#### Sales, Margin & Cash Movement Charts
+Trend charts showing monthly sales vs. COGS, gross margin stability, receipts vs. vendor payments, and P&L cost mix.
+![CEO Charts](client/images/ceo-05-charts.png)
+
+#### Plain-English AI Why-Notes & Copilot Queries
+Instant explanations of profit movements, margin changes, and cash drains with interactive "Ask a Why Question" chips.
+![CEO Why Notes and AI Copilot](client/images/ceo-06-why-ai.png)
+
+---
+
+### 5.2 CFO Pack Dashboard
+
+The **CFO Pack** is designed for deep financial control, liquidity management, and creditor reconciliation:
+
+#### Working Capital & Liquidity KPI Tiles
+Detailed balance sheet metrics including Debt/Equity ratio, Trade Receivables, Trade Payables, MSME 43B(h) overdue liabilities, and GST Net balances.
+![CFO KPI Tiles](client/images/cfo-01-kpi-tiles.png)
+
+#### Predictive 30 / 60 / 90-Day Cash Forecast
+Forward-looking cash projection calculated strictly from open receivables (AR) and vendor payables (AP) timing buckets.
+![CFO Cash Forecast](client/images/cfo-02-cash-forecast.png)
+
+#### AR & AP Aging Distribution (Donuts & Buckets)
+Visual aging analysis across 0-30, 31-60, 61-90, 90-120, and 120+ days for both debtors and creditors.
+![CFO Aging Distribution](client/images/cfo-03-aging-donuts.png)
+
+#### Customer & Vendor Intelligence
+Simultaneous visibility into top overdue customer accounts and largest vendor exposures.
+![CFO Overdue and Vendor Exposure](client/images/cfo-04-overdue-and-vendors.png)
+
+#### Cash Flow Receipts vs. Vendor Payments & Bank Position
+Monthly operational receipts compared against supplier disbursements, alongside real-time bank current and overdraft (OD) positions.
+![CFO Cash Receipts vs Payments and Bank Position](client/images/cfo-05-cash-receipts-payments.png)
+
+#### Cash Cycle Days & Statutory GST Balances
+Granular breakdown of operating cash cycle days (DSO, DIO, DPO, CCC) and Input vs. Output GST net liabilities.
+![CFO Cash Cycle and GST](client/images/cfo-06-cash-cycle-gst.png)
+
+#### Automated Telemetry Alerts
+Real-time red flags for collection efficiency dips, overdue debt concentration, and payment term violations.
+![CFO Telemetry Notes](client/images/cfo-07-telemetry-notes.png)
+
+---
+
+### 5.3 Board Pack Dashboard
+
+The **Board Pack** delivers governance-ready telemetry and risk disclosures formatted for directors and board meetings:
+
+#### Governance Red Flags & Balance Sheet Snapshot
+Automated exception alerts highlighting negative cash positions, equity erosion, and DSO policy breaches.
+![Board Red Flags and Balance Sheet](client/images/board-01-red-flags.png)
+
+#### Balance Sheet & Working Capital Breakdown
+Visual bars analyzing Asset vs. Liability vs. Equity distribution and inventory/creditor/debtor components.
+![Board Balance Sheet Charts](client/images/board-02-balance-sheet-charts.png)
+
+#### Enterprise Policy Scorecard
+Traffic-light evaluation (Hold / Breach / Warning) across customer concentration, vendor dependency, collections, and solvency.
+![Board Policy Scorecard](client/images/board-03-policy-scorecard.png)
+
+#### Benchmarks vs. Governance Standards
+Formal compliance checklist comparing company performance against statutory and internal baseline standards.
+![Board Benchmarks](client/images/board-04-benchmarks.png)
+
+#### Concentration Risk Disclosures (Customers & Vendors)
+Tabular audit disclosures of top customer revenue shares and supplier dependencies.
+![Board Concentration Tables](client/images/board-05-concentration-tables.png)
+
+---
+
+### 5.4 Chart Pack Dashboard
+
+The **Chart Pack** visualizes 12-month operational trajectories:
+
+#### Monthly Activity & Sales vs. COGS
+![Chart Pack Activity and Sales vs COGS](client/images/chart-01-activity-sales-cogs.png)
+
+#### Cash Movement & Monthly Gross Margin Trajectory
+![Chart Pack Cash Movement and Margin](client/images/chart-02-cash-movement-margin.png)
+
+#### P&L Mix & 12-Month Trailing Profit Waterfall
+![Chart Pack PL Mix and Profit](client/images/chart-03-pl-mix-monthly-profit.png)
+
+---
+
+### 5.5 Connect / Change Data Source Screen
+
+The **Connect Screen** provides a simple, read-only data ingestion wizard:
+
+#### Select ERP Data Source & Upload Journals
+Upload standard CSV or XML daybooks from TallyPrime, Zoho Books, Busy, or generic accounting systems with custom ledger mapping.
+![Connect Data Source](client/images/connect-01-data-source.png)
+
+---
+
+### 5.6 Executive MIS Architecture & AI Copilot Overview
+
+![OfficeMitra AI / SSDV Business Analyst Infographic](client/images/officemitra-infographic.png)
+
 ## 6. Connect another application (read-only)
+
+![Connect Pipeline Overview](client/images/workflow-overview.png)
 
 SSDV does **not** log into Tally / Zoho / Busy / MitraBooks. You **export** a journal / day book to CSV, map ledger names to SSDV account codes, then SSDV posts into a **sidecar** vault.
 

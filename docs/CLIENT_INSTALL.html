@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLIENT_INSTALL - OfficeMitra SSDV</title>
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.65;
+  color: #1e293b;
+  max-width: 960px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  background: #f8fafc;
+}
+.container {
+  background: #ffffff;
+  padding: 2.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+h1 { color: #0f172a; font-size: 2rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }
+h2 { color: #0f172a; font-size: 1.5rem; margin-top: 2rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.3rem; }
+h3 { color: #1e293b; font-size: 1.25rem; margin-top: 1.5rem; }
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.5rem auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+  border: 1px solid #e2e8f0;
+}
+table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.95rem; }
+th, td { border: 1px solid #e2e8f0; padding: 0.65rem 0.9rem; text-align: left; }
+th { background: #f1f5f9; font-weight: 600; color: #0f172a; }
+tr:nth-child(even) { background: #f8fafc; }
+code { background: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: Consolas, monospace; font-size: 0.9em; color: #0f172a; }
+pre { background: #0f172a; color: #f8fafc; padding: 1.2rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: transparent; color: inherit; padding: 0; }
+hr { border: 0; height: 1px; background: #e2e8f0; margin: 2rem 0; }
+a { color: #0284c7; text-decoration: none; }
+a:hover { text-decoration: underline; }
+li { margin-bottom: 0.3rem; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>OfficeMitra — Install and launch (Windows and Mac)</h1>
+<p><img src="client/images/sanmitra-logo.png" alt="SanMitra Tech Solutions"></p>
+<p><strong>SanMitra Technologies</strong></p>
+<li>**Website:** [https://www.sanmitratech.in](https://www.sanmitratech.in)</li>
+<li>**Support email:** [contact@sanmitratech.in](mailto:contact@sanmitratech.in)</li>
+<p>This guide is for <strong>non-technical users</strong>. You do <strong>not</strong> need to install Python. The full manual is in <strong><a href="CLIENT_MANUAL.md">CLIENT_MANUAL.md</a></strong>.</p>
+<p><strong>Your data stays on your computer.</strong> OfficeMitra reads exported journals. It does not log into Tally, Zoho, or Busy, and it never writes back.</p>
+<hr>
+<h2>Windows 10 or 11</h2>
+<p><img src="client/images/install-steps.png" alt="Installation Steps Checklist"></p>
+<h3>Install</h3>
+<p>1. Download <strong><code>OfficeMitra-Setup.exe</code></strong> from SanMitra (purchase email or website).</p>
+<p>2. Double-click the file. If Windows SmartScreen appears, choose <strong>More info</strong> → <strong>Run anyway</strong>.</p>
+<p>3. Click <strong>Next</strong> → <strong>Install</strong>.</p>
+<p>4. Tick <strong>Launch OfficeMitra</strong> at the end, or use the <strong>OfficeMitra</strong> icon on your desktop.</p>
+<h3>Daily use</h3>
+<p>1. Double-click <strong>OfficeMitra</strong> on the desktop (or Start menu).</p>
+<p>2. A small window opens — <strong>leave it open</strong> while you work.</p>
+<p>3. Your browser opens the dashboard. Use <strong>Setup</strong> to connect Tally or upload CSV/XML.</p>
+<p>4. To quit: close the browser tab, then close the OfficeMitra window.</p>
+<p>If the browser does not open, go to <strong>http://localhost:8501</strong>.</p>
+<h3>Portable zip (no installer)</h3>
+<p>1. Unzip <strong><code>OfficeMitra-windows.zip</code></strong>.</p>
+<p>2. Double-click <strong><code>OfficeMitra.exe</code></strong>.</p>
+<hr>
+<h2>Mac (macOS 12 Monterey or later)</h2>
+<h3>Install</h3>
+<p>1. Download <strong><code>OfficeMitra.dmg</code></strong>.</p>
+<p>2. Double-click the disk image.</p>
+<p>3. Drag <strong>OfficeMitra</strong> into <strong>Applications</strong>.</p>
+<p>4. Eject the disk image.</p>
+<h3>First open (unsigned build)</h3>
+<p>Apple may say the app is from an unidentified developer:</p>
+<p>1. In <strong>Applications</strong>, <strong>right-click</strong> (or Control-click) <strong>OfficeMitra</strong>.</p>
+<p>2. Choose <strong>Open</strong>.</p>
+<p>3. Confirm <strong>Open</strong>.</p>
+<p>You only do this once.</p>
+<h3>Daily use</h3>
+<p>1. Open <strong>OfficeMitra</strong> from Applications, Launchpad, or Spotlight.</p>
+<p>2. Leave the small status window open.</p>
+<p>3. Safari or Chrome opens the dashboard at <strong>http://localhost:8501</strong>.</p>
+<p>4. To quit: close the status window (or <strong>OfficeMitra → Quit</strong>).</p>
+<hr>
+<h2>Where your books are stored</h2>
+<table>
+<tr><th>System</th><th>Folder</th></tr>
+<tr><td>Windows</td><td>`C:\Users\<you>\AppData\Local\OfficeMitra\data`</td></tr>
+<tr><td>Mac</td><td>`~/Library/Application Support/OfficeMitra/data`</td></tr>
+</table>
+<p>The vault file is <strong><code>ssdv_connect.sqlite</code></strong> after you import your company.</p>
+<hr>
+<h2>Need help?</h2>
+<table>
+<tr><th>**Full manual**</th><th>[CLIENT_MANUAL.md](CLIENT_MANUAL.md)</th></tr>
+<tr><td>**Email**</td><td>[contact@sanmitratech.in](mailto:contact@sanmitratech.in)</td></tr>
+<tr><td>**Website**</td><td>[https://www.sanmitratech.in](https://www.sanmitratech.in)</td></tr>
+</table>
+<p>When emailing support, include your Windows or Mac version, what you were doing, a screenshot, and whether you use Tally, Zoho, Busy, or Excel.</p>
+<hr>
+<h2>Developers only (source + Python)</h2>
+<p>Contributors can still use the repo: install Python 3.11+, run <code>install.ps1</code> (Windows) or <code>pip install -e ".<a href="../installer/README.md">ui]"</code>, then <code>ssdv ui</code>. See <strong>[installer/README.md</a></strong>.</p>
+<hr>
+<p>*OfficeMitra is part of the SanMitra SSDV product family. Read-only analytics from posted journals.*</p>
+</div>
+</body>
+</html>

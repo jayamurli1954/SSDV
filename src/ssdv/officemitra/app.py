@@ -12,6 +12,7 @@ from ssdv.ask import AskError, ask_books
 from ssdv.db import create_schema, make_engine, session_scope
 from ssdv.mis import mis_snapshot, snapshot_payload
 from ssdv.officemitra.boardpack import render_board_pdf
+from ssdv.officemitra.branding import brand_icon_path, render_brand_header
 from ssdv.officemitra.charts import (
     aging_points,
     cash_forecast_points,
@@ -26,9 +27,14 @@ from ssdv.officemitra.charts import (
 from ssdv.officemitra.dashboard import render_dashboard
 from ssdv.officemitra.setup_flow import vault_has_data
 from ssdv.officemitra.setup_wizard import render_setup_wizard
-from ssdv.paths import default_db_path, repo_root
+from ssdv.paths import default_db_path, user_data_dir
 
-st.set_page_config(page_title="OfficeMitra", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="OfficeMitra",
+    page_icon=str(brand_icon_path()) if brand_icon_path().is_file() else "📊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 _CSS = """
 <style>
@@ -104,6 +110,13 @@ div[data-testid="stMetricValue"] {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   margin-bottom: 0.15rem;
+}
+.om-brand-img {
+  height: 58px;
+  width: auto;
+  display: block;
+  margin: 0 0 0.35rem 0;
+  padding: 0;
 }
 .om-tiles {
   display: grid;
@@ -786,7 +799,7 @@ def main() -> None:
         st.session_state.vault = st.session_state.pop("pending_vault")
     if "pending_screen" in st.session_state:
         st.session_state.screen = st.session_state.pop("pending_screen")
-    data_dir = repo_root() / "data"
+    data_dir = user_data_dir() / "data"
     found = sorted(str(path) for path in data_dir.glob("*.sqlite")) if data_dir.exists() else []
 
     with st.sidebar:
@@ -827,6 +840,7 @@ def main() -> None:
             )
 
     _unlock_full_page()
+    render_brand_header()
 
     screen = str(st.session_state.get("screen") or "CEO")
 
@@ -836,8 +850,7 @@ def main() -> None:
         render_setup_wizard()
         return
 
-    st.title("OfficeMitra")
-    st.write(
+    st.caption(
         "Read-only KPIs and AI notes from posted journals. "
         "Not a live login to Tally, Zoho, Busy, or MitraBooks."
     )

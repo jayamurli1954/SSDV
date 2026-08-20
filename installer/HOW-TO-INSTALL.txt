@@ -1,0 +1,69 @@
+OfficeMitra — how to install and start
+======================================
+
+SanMitra Technologies
+Website: https://www.sanmitratech.in
+Support: contact@sanmitratech.in
+
+You do NOT need to install Python.
+
+
+WINDOWS (this zip package)
+--------------------------
+
+1. Unzip this folder to a simple place, for example:
+      C:\OfficeMitra
+   (Avoid putting it deep inside Program Files if you can.)
+
+2. Open the unzipped folder.
+
+3. Double-click:  OfficeMitra.exe
+
+4. A small window appears — leave it open while you work.
+   Your browser should open the dashboard (http://localhost:8501).
+
+5. On first use, follow the Setup screen to connect Tally or upload
+   your CSV / XML export.
+
+6. To quit: close the browser tab, then close the OfficeMitra window.
+
+If Windows SmartScreen appears:
+   More info  →  Run anyway
+
+
+WINDOWS (Setup installer)
+-------------------------
+If SanMitra sent you OfficeMitra-Setup.exe instead of this zip:
+   Double-click the Setup file → Next → Install → use the desktop icon.
+
+
+MAC
+---
+1. Open OfficeMitra.dmg
+2. Drag OfficeMitra into Applications
+3. First open: right-click OfficeMitra → Open → Open
+4. Daily use: open from Applications or Launchpad
+
+
+MANUALS IN THIS PACKAGE
+-----------------------
+Open the "docs" folder next to OfficeMitra.exe:
+
+  CLIENT_INSTALL.pdf   — short install guide
+  CLIENT_MANUAL.pdf    — how to use CEO / CFO / Board packs
+  USER_MANUAL.pdf      — fuller technical reference
+
+
+WHERE YOUR BOOKS ARE STORED
+---------------------------
+Windows:  %LOCALAPPDATA%\OfficeMitra\data
+Mac:      ~/Library/Application Support/OfficeMitra/data
+
+Your data stays on this computer. OfficeMitra is read-only —
+it never writes back to Tally, Zoho, or Busy.
+
+
+NEED HELP?
+----------
+Email: contact@sanmitratech.in
+Please include your Windows/Mac version, what you tried, and a screenshot.

@@ -41,8 +41,10 @@ from ssdv.paths import (
     default_dashboard_path,
     default_db_path,
     ingest_db_path,
+    is_frozen,
     load_company,
     repo_root,
+    user_data_dir,
 )
 from ssdv.period import generate_books
 from ssdv.purchases.generate import generate_purchases
@@ -78,7 +80,9 @@ def _db(args: argparse.Namespace) -> Path:
     db: Path = args.db
     scenario = getattr(args, "scenario", None)
     if scenario and scenario != "baseline" and db.resolve() == default_db_path().resolve():
-        return repo_root() / "data" / f"ssdv_{scenario}.sqlite"
+        path = user_data_dir() / "data" / f"ssdv_{scenario}.sqlite"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
     return db
 
 
@@ -411,6 +415,12 @@ def cmd_ui(args: argparse.Namespace) -> int:
     import os
     import subprocess
     import sys
+
+    if is_frozen():
+        os.environ["OFFICEMITRA_DB"] = str(_db(args))
+        from ssdv.officemitra.desktop import main as desktop_main
+
+        return int(desktop_main() or 0)
 
     def _streamlit_python() -> Path | None:
         if importlib.util.find_spec("streamlit") is not None:

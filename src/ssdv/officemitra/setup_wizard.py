@@ -113,7 +113,6 @@ def _execute_pending_import() -> None:
 def render_setup_wizard() -> None:
     """Render the setup flow. Main app should return immediately after calling this."""
 
-    st.markdown('<div class="om-kicker">Setup</div>', unsafe_allow_html=True)
     st.header("Connect your accounts data")
     st.write(
         "Choose where your books come from. OfficeMitra reads data only — "

@@ -7,7 +7,8 @@ from datetime import date
 from pathlib import Path
 
 from ssdv.licensing.plans import PlanSpec, load_plans, plan_for
-from ssdv.paths import repo_root
+from ssdv.paths import install_dir as default_install_dir
+from ssdv.paths import repo_root, user_data_dir
 
 
 class LicenseError(Exception):
@@ -54,8 +55,9 @@ def resolve_license_paths(install_dir: Path | None = None) -> list[Path]:
     paths: list[Path] = []
     home = Path.home() / ".officemitra" / "officemitra.license"
     paths.append(home)
-    if install_dir is not None:
-        paths.append(install_dir / "officemitra.license")
+    paths.append(user_data_dir() / "officemitra.license")
+    bundled = install_dir if install_dir is not None else default_install_dir()
+    paths.append(bundled / "officemitra.license")
     paths.append(repo_root() / "officemitra.license")
     return paths
 

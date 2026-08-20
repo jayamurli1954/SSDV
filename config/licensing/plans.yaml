@@ -27,7 +27,7 @@ plans:
     name: Professional
     company_limit: 1
     price_inr: 6999
-    price_inr_list: 9999
+    price_inr_list: 7999
     amc_inr: 2999
     features:
       ceo_pack: true

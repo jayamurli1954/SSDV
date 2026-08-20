@@ -16,10 +16,18 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.2", "ruff>=0.5"]
-ui = ["streamlit>=1.36"]
+ui = [
+    "streamlit>=1.36",
+    "altair>=5",
+    "pandas>=2",
+    "openpyxl>=3.1",
+    "python-pptx>=0.6.21",
+]
+desktop = ["pyinstaller>=6.6"]
 
 [project.scripts]
 ssdv = "ssdv.cli:main"
+officemitra = "ssdv.officemitra.desktop:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
