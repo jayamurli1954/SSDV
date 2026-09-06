@@ -74,6 +74,7 @@ Download the artifacts and put them on https://www.sanmitratech.in.
 | `installer/OfficeMitra.iss` | Inno Setup for the bundled exe |
 | `installer/OfficeMitra-source.iss` | Optional Python-based source installer (developers) |
 | `installer/HOW-TO-INSTALL.txt` | Plain-text note copied into the zip / DMG / Setup |
+| `installer/SETUP-FOR-CA.txt` | Step-by-step for CAs: Setup.exe + copy `ssdv.sqlite` |
 | `docs/*.pdf` | Client install + manuals packaged next to the app |
 
 ## Developer / source install (not for customers)
