@@ -31,6 +31,10 @@ def write_excel(payload: dict[str, Any], out: Path) -> None:
         ("Scenario", _stringify(payload.get("scenario"))),
         ("Pack", _stringify(payload.get("pack"))),
         ("Title", _stringify(payload.get("title"))),
+        ("Data quality", _stringify(payload.get("data_quality_score"))),
+        ("Quality band", _stringify(payload.get("data_quality_band"))),
+        ("Reviewed", "yes" if payload.get("reviewed") else "no"),
+        ("PPT allowed", "yes" if payload.get("ppt_allowed") else "no"),
     ]
     for r_i, (k, v) in enumerate(rows, start=1):
         ws.cell(row=r_i, column=1, value=k)
@@ -98,12 +102,32 @@ def write_excel(payload: dict[str, Any], out: Path) -> None:
             ]
         )
 
+    bva = payload.get("budget_vs_actual") if isinstance(payload.get("budget_vs_actual"), dict) else {}
+    ws5 = wb.create_sheet(_sheet_title("Budget vs actual"))
+    ws5.append(["Metric", "Value"])
+    for key in ("sales_actual", "sales_budget", "variance_abs", "variance_pct", "source"):
+        ws5.append([key, _stringify(bva.get(key))])
+
+    ws6 = wb.create_sheet(_sheet_title("Data quality"))
+    ws6.append(["Field", "Value"])
+    ws6.append(["score", _stringify(payload.get("data_quality_score"))])
+    ws6.append(["band", _stringify(payload.get("data_quality_band"))])
+    ws6.append(["reviewed", "yes" if payload.get("reviewed") else "no"])
+    ws6.append(["ppt_allowed", "yes" if payload.get("ppt_allowed") else "no"])
+    ws6.append(["ppt_block_reason", _stringify(payload.get("ppt_block_reason"))])
+    breakdown = payload.get("data_quality_breakdown") if isinstance(payload.get("data_quality_breakdown"), dict) else {}
+    ws6.append(["gates_failed", _stringify(breakdown.get("gates_failed"))])
+    ws6.append(["missing_budget", _stringify(breakdown.get("missing_budget"))])
+
     out.parent.mkdir(parents=True, exist_ok=True)
     wb.save(out)
 
 
 def write_ppt(payload: dict[str, Any], out: Path) -> None:
     """Write a simple executive PPTX from the dashboard payload."""
+    from ssdv.officemitra.quality import assert_ppt_allowed
+
+    assert_ppt_allowed(payload)
 
     from pptx import Presentation
 
@@ -135,6 +159,8 @@ def write_ppt(payload: dict[str, Any], out: Path) -> None:
             f"Sales: {_stringify(kpis.get('sales'))}",
             f"COGS: {_stringify(kpis.get('cogs'))}",
             f"Gross Margin: {_stringify(kpis.get('gross_margin'))} ({_stringify(kpis.get('gm_pct'))})",
+            f"Quality: {_stringify(payload.get('data_quality_score'))} ({_stringify(payload.get('data_quality_band'))})",
+            f"Reviewed: {'yes' if payload.get('reviewed') else 'no'}",
         ],
     )
 

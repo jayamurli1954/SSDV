@@ -41,6 +41,12 @@ from ssdv.officemitra.firm import (
     client_vault_path,
     roster_as_dicts,
 )
+from ssdv.officemitra.quality import (
+    ExportBlocked,
+    assess_session,
+    enrich_payload,
+    mark_reviewed,
+)
 from ssdv.paths import (
     connect_db_path,
     default_board_pack_path,
@@ -188,6 +194,14 @@ def cmd_validate(args: argparse.Namespace) -> int:
             if not gate.ok:
                 failed += 1
             print(f"{status:<4} {gate.name:<22} {gate.detail}")
+        quality = assess_session(session, args.as_of, _db(args), company=cfg)
+        print(
+            f"QUALITY {quality.score} {quality.band}  "
+            f"reviewed {'yes' if quality.reviewed else 'no'}  "
+            f"ppt {'allowed' if quality.ppt_allowed else 'blocked'}"
+        )
+        if quality.ppt_block_reason:
+            print(f"PPT    {quality.ppt_block_reason}")
         return 1 if failed else 0
 
 
@@ -328,6 +342,7 @@ def cmd_mis(args: argparse.Namespace) -> int:
                 analyst_error = str(exc)
         if args.json:
             payload = snapshot_payload(snap, pack, peer=peer)
+            payload = enrich_payload(payload, session, _db(args), args.as_of, company=cfg)
             if analyst:
                 payload["analyst"] = analyst
             if analyst_error:
@@ -360,6 +375,7 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
 
             peer = load_baseline_peer(snap.as_of, exclude=_db(args))
         payload = snapshot_payload(snap, "all" if args.pdf else "ceo", peer=peer)
+        payload = enrich_payload(payload, session, _db(args), args.as_of, company=cfg)
         if args.ask:
             try:
                 payload["analyst"] = ask_books(
@@ -385,36 +401,35 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
             print(f"Database: {_db(args)}")
             print(f"Wrote:    {out}")
             print("Board pack PDF from posted journals.")
-            if getattr(args, "excel", False):
-                from ssdv.officemitra.export import write_excel
-
-                excel_out = out.with_suffix(".xlsx")
-                write_excel(payload, excel_out)
-                print(f"Wrote:    {excel_out}")
-            if getattr(args, "ppt", False):
-                from ssdv.officemitra.export import write_ppt
-
-                ppt_out = out.with_suffix(".pptx")
-                write_ppt(payload, ppt_out)
-                print(f"Wrote:    {ppt_out}")
         else:
             out.write_text(render_dashboard(payload), encoding="utf-8")
             print(f"Database: {_db(args)}")
             print(f"Wrote:    {out}")
             print("Open the HTML file in a browser. OfficeMitra lines sit on the CEO screen.")
-            if getattr(args, "excel", False):
-                from ssdv.officemitra.export import write_excel
+        return _finish_dashboard(args, out, payload, snap.equation.holds)
 
-                excel_out = out.with_suffix(".xlsx")
-                write_excel(payload, excel_out)
-                print(f"Wrote:    {excel_out}")
-            if getattr(args, "ppt", False):
-                from ssdv.officemitra.export import write_ppt
 
-                ppt_out = out.with_suffix(".pptx")
-                write_ppt(payload, ppt_out)
-                print(f"Wrote:    {ppt_out}")
-        return 0 if snap.equation.holds else 1
+def _finish_dashboard(args: argparse.Namespace, out: Path, payload: dict, equation_holds: bool) -> int:
+    blocked = 0
+    if getattr(args, "excel", False):
+        from ssdv.officemitra.export import write_excel
+
+        excel_out = out.with_suffix(".xlsx")
+        write_excel(payload, excel_out)
+        print(f"Wrote:    {excel_out}")
+    if getattr(args, "ppt", False):
+        from ssdv.officemitra.export import write_ppt
+
+        ppt_out = out.with_suffix(".pptx")
+        try:
+            write_ppt(payload, ppt_out)
+            print(f"Wrote:    {ppt_out}")
+        except ExportBlocked as exc:
+            print(f"PPT blocked: {exc}")
+            blocked = 2
+    if blocked:
+        return blocked
+    return 0 if equation_holds else 1
 
 
 def cmd_firm(args: argparse.Namespace) -> int:
@@ -441,10 +456,28 @@ def cmd_firm(args: argparse.Namespace) -> int:
         print(f"Hidden:   {roster.hidden} (company limit {roster.company_limit})")
     for row in roster.rows:
         err = f"  ERROR {row.error}" if row.error else ""
+        score_txt = "-" if row.score is None else str(row.score)
         print(
             f"{row.company:<32}  sales {row.sales:>14,.2f}  "
-            f"AR90+ {row.ar_90:>12,.2f}  cash {row.cash:>14,.2f}{err}"
+            f"AR90+ {row.ar_90:>12,.2f}  cash {row.cash:>14,.2f}  "
+            f"q {score_txt:>3}  "
+            f"{'rev' if row.reviewed else 'draft'}{err}"
         )
+    return 0
+
+
+def cmd_review(args: argparse.Namespace) -> int:
+    engine = make_engine(_db(args))
+    create_schema(engine)
+    with session_scope(engine) as session:
+        mark_reviewed(_db(args), args.as_of, session=session)
+        quality = assess_session(session, args.as_of, _db(args), company=_company(args, session))
+    print(f"Database: {_db(args)}")
+    print(f"Reviewed: {args.as_of.isoformat()}")
+    print(
+        f"QUALITY {quality.score} {quality.band}  "
+        f"ppt {'allowed' if quality.ppt_allowed else 'blocked'}"
+    )
     return 0
 
 
@@ -730,7 +763,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--pdf", action="store_true", help="Write a Board pack PDF instead of CEO HTML"
     )
     dash.add_argument("--excel", action="store_true", help="Also write an executive .xlsx")
-    dash.add_argument("--ppt", action="store_true", help="Also write an executive .pptx")
+    dash.add_argument("--ppt", action="store_true", help="Write Board PPT if reviewed and quality >= 70")
     dash.add_argument("--ask", action="store_true", help="Add an Ollama paragraph if Ollama is up")
     dash.add_argument("--model", default=None)
     dash.add_argument("--host", default=None)
@@ -749,6 +782,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     firm.add_argument("--json", action="store_true", help="Print the roster as JSON")
     firm.set_defaults(func=cmd_firm)
+
+    review = sub.add_parser(
+        "review",
+        help="Mark posted books reviewed for this as-of (required before Board PPT)",
+    )
+    review.add_argument("--as-of", type=_parse_date, default=date(2026, 3, 31))
+    review.set_defaults(func=cmd_review)
 
     ui = sub.add_parser("ui", help="Open the Streamlit OfficeMitra dashboard in a browser")
     ui.add_argument("--as-of", type=_parse_date, default=date(2026, 3, 31))

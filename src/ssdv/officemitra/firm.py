@@ -18,6 +18,7 @@ from ssdv.licensing import load_license
 from ssdv.mis import mis_snapshot
 from ssdv.models import Voucher
 from ssdv.money import ZERO, money
+from ssdv.officemitra.quality import assess_session
 from ssdv.paths import user_data_dir
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
@@ -34,6 +35,9 @@ class ClientSummary:
     working_capital: Decimal
     ar: Decimal
     error: str | None = None
+    score: int | None = None
+    reviewed: bool = False
+    ppt_allowed: bool = False
 
 
 @dataclass(frozen=True)
@@ -122,6 +126,7 @@ def summarize_vault(db_path: Path, as_of: date) -> ClientSummary:
         create_schema(engine)
         with session_scope(engine) as session:
             snap = mis_snapshot(session, as_of)
+            quality = assess_session(session, as_of, db_path)
         aging = snap.ar_aging or {}
         ar_90 = money(aging.get("90+", ZERO))
         return ClientSummary(
@@ -133,6 +138,9 @@ def summarize_vault(db_path: Path, as_of: date) -> ClientSummary:
             ar_90=ar_90,
             working_capital=money(snap.working_capital),
             ar=money(snap.ar),
+            score=quality.score,
+            reviewed=quality.reviewed,
+            ppt_allowed=quality.ppt_allowed,
         )
     except (OSError, SQLAlchemyError, ValueError, KeyError) as exc:
         return ClientSummary(
@@ -173,6 +181,8 @@ def roster_as_dicts(roster: FirmRoster) -> list[dict[str, str | int | None]]:
                 "ar_90": str(row.ar_90),
                 "working_capital": str(row.working_capital),
                 "ar": str(row.ar),
+                "score": None if row.score is None else str(row.score),
+                "reviewed": "yes" if row.reviewed else "no",
                 "error": row.error,
             }
         )
@@ -194,6 +204,8 @@ def render_firm_html(roster: FirmRoster) -> str:
             f"<td class='num'>{row.ar_90:,.2f}</td>"
             f"<td class='num'>{row.cash:,.2f}</td>"
             f"<td class='num'>{row.working_capital:,.2f}</td>"
+            f"<td class='num'>{'' if row.score is None else row.score}</td>"
+            f"<td>{'yes' if row.reviewed else 'no'}</td>"
             f"<td>{_esc(row.vault_label)}</td>"
             f"{err}"
             "</tr>"
@@ -204,7 +216,7 @@ def render_firm_html(roster: FirmRoster) -> str:
         if roster.hidden
         else ""
     )
-    body = "\n".join(rows_html) or "<tr><td colspan='7'>No client books found.</td></tr>"
+    body = "\n".join(rows_html) or "<tr><td colspan='9'>No client books found.</td></tr>"
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <title>OfficeMitra firm roster</title>
@@ -226,7 +238,8 @@ td.err {{ color: #B42318; }}
 <table>
 <thead><tr>
 <th>Client</th><th class="num">Revenue</th><th class="num">AR 90+</th>
-<th class="num">Cash</th><th class="num">Working capital</th><th>Vault</th><th></th>
+<th class="num">Cash</th><th class="num">Working capital</th>
+<th class="num">Score</th><th>Reviewed</th><th>Vault</th><th></th>
 </tr></thead>
 <tbody>
 {body}

@@ -1,0 +1,4 @@
+# Optional sidecar for imported client vaults.
+# Save next to the SQLite file as <vault-stem>.budget.yaml
+# Example: data/ssdv_sample-traders-pvt-ltd.budget.yaml
+sales: 180000

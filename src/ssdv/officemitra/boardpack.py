@@ -123,7 +123,7 @@ td, th {{ border-bottom: 1px solid #eee; padding: 6px 0; text-align: left; }}
 </head>
 <body>
 <h1>{_esc(payload.get("company"))}</h1>
-<p class="meta">OfficeMitra Board pack · {_esc(payload.get("scenario"))} · as of {_esc(payload.get("as_of"))} · equity {_esc(kpis.get("equity"))} · cash {_esc(kpis.get("cash"))}</p>
+<p class="meta">OfficeMitra Board pack · {_esc(payload.get("scenario"))} · as of {_esc(payload.get("as_of"))} · equity {_esc(kpis.get("equity"))} · cash {_esc(kpis.get("cash"))} · quality {_esc(payload.get("data_quality_score"))} {_esc(payload.get("data_quality_band"))} · reviewed {_esc("yes" if payload.get("reviewed") else "no")}</p>
 <h2>Red flags</h2>
 {flag_html}
 <h2>Board tiles</h2>

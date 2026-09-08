@@ -25,11 +25,18 @@ from ssdv.officemitra.charts import (
     scorecard_points,
 )
 from ssdv.officemitra.dashboard import render_dashboard
+from ssdv.officemitra.export import write_excel, write_ppt
 from ssdv.officemitra.firm import (
     apply_company_limit,
     discover_vaults,
     effective_company_limit,
     summarize_vault,
+)
+from ssdv.officemitra.quality import (
+    budget_sidecar_path,
+    enrich_payload,
+    mark_reviewed,
+    review_sidecar_path,
 )
 from ssdv.officemitra.setup_flow import vault_has_data
 from ssdv.officemitra.setup_wizard import render_setup_wizard
@@ -219,7 +226,7 @@ def _inr_text(value) -> str:
 
 
 @st.cache_data(show_spinner="Reading posted books...")
-def _payload(db_path: str, as_of: str) -> dict:
+def _payload(db_path: str, as_of: str, sidecar_stamp: str = "") -> dict:
     engine = make_engine(Path(db_path))
     create_schema(engine)
     with session_scope(engine) as session:
@@ -229,7 +236,34 @@ def _payload(db_path: str, as_of: str) -> dict:
             from ssdv.mis.benchmarks import load_baseline_peer
 
             peer = load_baseline_peer(snap.as_of, exclude=Path(db_path))
-        return snapshot_payload(snap, "all", peer=peer)
+        payload = snapshot_payload(snap, "all", peer=peer)
+        return enrich_payload(payload, session, Path(db_path), date.fromisoformat(as_of))
+
+
+def _excel_bytes(payload: dict) -> bytes:
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "pack.xlsx"
+        write_excel(payload, path)
+        return path.read_bytes()
+
+
+def _ppt_bytes(payload: dict) -> bytes:
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "pack.pptx"
+        write_ppt(payload, path)
+        return path.read_bytes()
+
+
+def _sidecar_stamp(db_path: str) -> str:
+    bits: list[str] = []
+    for path in (review_sidecar_path(Path(db_path)), budget_sidecar_path(Path(db_path))):
+        if path.is_file():
+            bits.append(f"{path.name}:{path.stat().st_mtime}")
+    return "|".join(bits)
 
 
 @st.cache_data(show_spinner="Reading client books...")
@@ -243,6 +277,8 @@ def _firm_row(db_path: str, as_of: str) -> dict:
         "cash": str(row.cash),
         "ar_90": str(row.ar_90),
         "working_capital": str(row.working_capital),
+        "score": "" if row.score is None else str(row.score),
+        "reviewed": "yes" if row.reviewed else "no",
         "error": row.error or "",
     }
 
@@ -819,6 +855,8 @@ def _render_firm(rows: list[dict], *, hidden: int, limit: int | None, as_of: dat
                 "AR 90+": row["ar_90"],
                 "Cash": row["cash"],
                 "Working capital": row["working_capital"],
+                "Score": row.get("score") or "",
+                "Reviewed": row.get("reviewed") or "no",
                 "Vault": row["vault"],
             }
             for row in rows
@@ -841,14 +879,39 @@ def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> Non
     st.markdown('<div class="om-kicker">Posted books</div>', unsafe_allow_html=True)
     st.subheader(str(payload.get("company") or ""))
     wc = _inr_text((payload.get("kpis") or {}).get("working_capital"))
+    score = payload.get("data_quality_score")
+    band = payload.get("data_quality_band") or ""
     st.markdown(
         f'<div class="om-meta">'
         f"<span>Scenario {payload.get('scenario')}</span>"
         f"<span>As of {payload.get('as_of')}</span>"
         f"<span>Working capital {wc}</span>"
+        f"<span>Quality {score} {band}</span>"
+        f"<span>{'Reviewed' if payload.get('reviewed') else 'Not reviewed'}</span>"
         f"</div>",
         unsafe_allow_html=True,
     )
+    if payload.get("ppt_block_reason") and not payload.get("ppt_allowed"):
+        _note("warning", str(payload["ppt_block_reason"]))
+    bva = payload.get("budget_vs_actual") if isinstance(payload.get("budget_vs_actual"), dict) else {}
+    if bva.get("sales_budget"):
+        st.caption(
+            f"Sales vs budget: actual {bva.get('sales_actual')}  "
+            f"budget {bva.get('sales_budget')}  variance {bva.get('variance_abs')} "
+            f"({bva.get('source')})"
+        )
+    elif bva.get("source") == "missing":
+        st.caption(
+            "No budget sidecar for this imported vault. "
+            f"Add `{Path(db_path).stem}.budget.yaml` next to the SQLite file (sales: amount)."
+        )
+    if st.button("Mark books reviewed for this as-of", key="mark_reviewed"):
+        engine = make_engine(Path(db_path))
+        create_schema(engine)
+        with session_scope(engine) as session:
+            mark_reviewed(Path(db_path), as_of, session=session)
+        st.cache_data.clear()
+        st.rerun()
     st.download_button(
         "Download full report (HTML)",
         data=render_dashboard(payload).encode("utf-8"),
@@ -861,8 +924,24 @@ def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> Non
         data=render_board_pdf(payload),
         file_name=f"officemitra-board-{payload.get('as_of')}.pdf",
         mime="application/pdf",
-        help="Automated Board pack from posted journals. Recommend-only. PPT is not in this pack.",
+        help="Automated Board pack from posted journals. Recommend-only.",
     )
+    excel_bytes = _excel_bytes(payload)
+    st.download_button(
+        "Download Excel",
+        data=excel_bytes,
+        file_name=f"officemitra-{payload.get('as_of')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    if payload.get("ppt_allowed"):
+        st.download_button(
+            "Download Board PPT",
+            data=_ppt_bytes(payload),
+            file_name=f"officemitra-board-{payload.get('as_of')}.pptx",
+            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        )
+    else:
+        st.caption("Board PPT stays blocked until quality is at least 70 and books are reviewed.")
     if screen == "CEO":
         _render_ceo(payload, db_path, as_of)
     elif screen == "CFO":
@@ -968,7 +1047,7 @@ def main() -> None:
     if not Path(db_path).exists():
         st.error("No books loaded yet. Use **Change data source** in the sidebar to import.")
         return
-    payload = _payload(db_path, as_of.isoformat())
+    payload = _payload(db_path, as_of.isoformat(), _sidecar_stamp(db_path))
     if as_of > date(2026, 3, 31):
         st.warning(
             "As of is after ABC year-end (31 Mar 2026), so this FY has no sales. "
