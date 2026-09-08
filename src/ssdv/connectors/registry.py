@@ -27,19 +27,19 @@ _CONNECTORS: tuple[ConnectorInfo, ...] = (
         "zoho",
         "Zoho Books",
         "export_csv",
-        "Native API is not wired. Export journals to CSV and use --source generic.",
+        "No live Zoho API. Export the journal register to CSV (generic columns) and connect.",
     ),
     ConnectorInfo(
         "busy",
         "Busy",
         "export_csv",
-        "Native dump is not wired. Export vouchers to CSV and use --source generic.",
+        "No live Busy dump. Export vouchers to CSV (generic columns) and connect.",
     ),
     ConnectorInfo(
         "mitrabooks",
         "MitraBooks ERP",
         "export_csv",
-        "SSDV is the connector, not the ERP. Export journals or point at an SSDV vault.",
+        "No live MitraBooks API. Export journals to CSV (generic columns) and connect.",
     ),
 )
 
@@ -62,6 +62,6 @@ def get_connector(source_id: str) -> ConnectorInfo:
 
 def require_ready(source_id: str) -> ConnectorInfo:
     info = get_connector(source_id)
-    if info.status != "ready":
-        raise ConnectorNotReady(info.hint)
-    return info
+    if info.status in {"ready", "export_csv"}:
+        return info
+    raise ConnectorNotReady(info.hint)

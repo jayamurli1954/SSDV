@@ -260,7 +260,7 @@ cd D:\SSDV
 <pre><code>
 .\.venv\Scripts\ssdv.exe connect --source generic --journals .\tally_daybook.csv --map .\ledger_map.csv --name "Your Tally Company" --force
 </code></pre>
-<p><code>--source tally</code> (or zoho / busy / mitrabooks) only prints the export hint and exits. That is expected.</p>
+<p>TallyPrime XML and TallyPrime HTTP are wired. For Zoho, Busy, and MitraBooks, export a journal CSV (same columns as generic) and connect with <code>--source zoho</code> (or busy / mitrabooks).</p>
 <p>Imported books have <strong>no planted SSDV cause</strong>. OfficeMitra may only explain numbers that are in the posted ledger.</p>
 <h2>7. File formats</h2>
 <p>Sample files: <code>examples\generic_ingest\journals.csv</code> and <code>examples\generic_ingest\ledger_map.csv</code>.</p>

@@ -92,6 +92,10 @@ def default_board_pack_path() -> Path:
     return _vault_dir() / "board-pack.pdf"
 
 
+def default_firm_path() -> Path:
+    return _vault_dir() / "firm.html"
+
+
 def default_company_path() -> Path:
     return resource_root() / "config" / "companies" / "abc_industrial.yaml"
 

@@ -1,5 +1,6 @@
 from ssdv.officemitra.boardpack import render_board_html, render_board_pdf
 from ssdv.officemitra.dashboard import render_dashboard
+from ssdv.officemitra.firm import render_firm_html
 from ssdv.officemitra.insights import (
     WHY_PROMPTS,
     Insight,
@@ -17,4 +18,5 @@ __all__ = [
     "render_board_html",
     "render_board_pdf",
     "render_dashboard",
+    "render_firm_html",
 ]

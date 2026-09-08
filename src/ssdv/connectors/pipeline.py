@@ -38,14 +38,6 @@ def connect_journals(
 
     if journals is None or not journals.exists():
         raise IngestError(f"Journal export not found: {journals}")
-    if info.id == "generic":
-        return ingest_generic(
-            session,
-            journals,
-            account_map,
-            company_name=company_name,
-            source=info.id,
-        )
     if info.id == "tally":
         return ingest_tally_daybook(
             session,
@@ -54,8 +46,15 @@ def connect_journals(
             company_name=company_name,
             source=info.id,
         )
+    if info.id == "generic" or info.status == "export_csv":
+        return ingest_generic(
+            session,
+            journals,
+            account_map,
+            company_name=company_name,
+            source=info.id,
+        )
 
-    # Should be unreachable if require_ready() only returns wired sources.
     raise ConnectorError(f"Unsupported source {info.id!r}")
 
 

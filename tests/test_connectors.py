@@ -23,12 +23,36 @@ def test_generic_connector_is_ready() -> None:
     assert "mitrabooks" in ids
     require_ready("generic")
     require_ready("tally")
+    require_ready("zoho")
+    require_ready("busy")
+    require_ready("mitrabooks")
     titles = {item.id: item.title for item in list_connectors()}
     assert "Any ERP" in titles["generic"]
 
 
 def test_connect_cli_list() -> None:
     assert main(["connect", "--list"]) == 0
+
+
+def test_connect_cli_named_client_vault(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("OFFICEMITRA_HOME", str(tmp_path))
+    code = main(
+        [
+            "connect",
+            "--source",
+            "mitrabooks",
+            "--journals",
+            str(EXAMPLE / "journals.csv"),
+            "--map",
+            str(EXAMPLE / "ledger_map.csv"),
+            "--name",
+            "Mitra Client",
+            "--force",
+        ]
+    )
+    assert code == 0
+    vault = tmp_path / "data" / "ssdv_mitra-client.sqlite"
+    assert vault.is_file()
 
 
 def test_connect_cli_writes_sidecar_db(tmp_path: Path) -> None:
@@ -75,6 +99,20 @@ def test_load_into_vault_pipeline(tmp_path: Path) -> None:
     )
     assert result.vouchers == 7
     assert result.source == "generic"
+
+
+def test_load_into_vault_zoho_csv(tmp_path: Path) -> None:
+    db = tmp_path / "zoho.sqlite"
+    result = load_into_vault(
+        db,
+        source="zoho",
+        journals=EXAMPLE / "journals.csv",
+        account_map=EXAMPLE / "ledger_map.csv",
+        company_name="Zoho Co",
+        force=True,
+    )
+    assert result.source == "zoho"
+    assert result.vouchers == 7
 
 
 def test_load_into_vault_tally_daybook(tmp_path: Path) -> None:

@@ -6,12 +6,11 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from sqlalchemy import func, select
-
 from ssdv.connectors import list_connectors, load_into_vault
 from ssdv.db import create_schema, make_engine, session_scope
 from ssdv.ingest.generic import IngestResult
-from ssdv.models import IngestMeta, Voucher
+from ssdv.models import IngestMeta
+from ssdv.officemitra.firm import discover_vaults, voucher_count
 from ssdv.paths import connect_db_path
 from ssdv.validate import run_gates
 
@@ -50,7 +49,6 @@ def source_choices() -> list[SourceChoice]:
     return [
         SourceChoice(item.id, item.title, item.status, item.hint)
         for item in list_connectors()
-        if item.id != "mitrabooks"
     ]
 
 
@@ -62,16 +60,15 @@ def friendly_status(status: str) -> str:
 
 
 def vault_voucher_count(db_path: Path) -> int:
-    if not db_path.exists():
-        return 0
-    engine = make_engine(db_path)
-    create_schema(engine)
-    with session_scope(engine) as session:
-        return int(session.scalar(select(func.count()).select_from(Voucher)) or 0)
+    return voucher_count(db_path)
 
 
 def vault_has_data(db_path: Path | None = None) -> bool:
-    return vault_voucher_count(db_path or _CONNECT_VAULT) > 0
+    if db_path is not None:
+        return vault_voucher_count(db_path) > 0
+    if discover_vaults():
+        return True
+    return vault_voucher_count(_CONNECT_VAULT) > 0
 
 
 def ingest_meta_as_of(db_path: Path) -> date | None:
@@ -103,9 +100,10 @@ def run_import(
     company_name: str | None,
     tally_host: str | None,
     force: bool,
+    db_path: Path | None = None,
 ) -> IngestResult:
     return load_into_vault(
-        _CONNECT_VAULT,
+        db_path or _CONNECT_VAULT,
         source=source,
         journals=journals,
         account_map=account_map,

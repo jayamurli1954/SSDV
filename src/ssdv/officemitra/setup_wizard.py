@@ -10,8 +10,8 @@ import streamlit as st
 from ssdv.connectors import ConnectorError, ConnectorNotReady
 from ssdv.connectors.tally_http import DEFAULT_TALLY_HOST, list_companies, ping
 from ssdv.ingest import IngestError
+from ssdv.officemitra.firm import assert_can_add_vault, client_vault_path
 from ssdv.officemitra.setup_flow import (
-    SourceChoice,
     connect_vault_path,
     friendly_status,
     ingest_meta_as_of,
@@ -59,7 +59,7 @@ def _execute_pending_import() -> None:
     tally_host = pending.get("tally_host") or None
     journal_path = Path(pending["journal_path"]) if pending.get("journal_path") else None
     map_path = Path(pending["map_path"]) if pending.get("map_path") else None
-    vault = connect_vault_path()
+    vault = Path(pending["vault"]) if pending.get("vault") else connect_vault_path()
 
     with st.spinner("Importing books…"):
         try:
@@ -70,6 +70,7 @@ def _execute_pending_import() -> None:
                 company_name=company_name,
                 tally_host=tally_host,
                 force=force,
+                db_path=vault,
             )
         except ConnectorNotReady as exc:
             st.error(str(exc))
@@ -172,11 +173,10 @@ def render_setup_wizard() -> None:
     else:
         if choice.status == "export_csv":
             st.caption(
-                f"No live connector for {choice.title} yet. "
-                f"Export a journal register from {choice.title} and upload it below "
-                f"(same format as generic CSV)."
+                f"No live login for {choice.title}. "
+                "Export a journal register and upload it below "
+                "(same CSV columns as Any ERP)."
             )
-            import_source = "generic"
 
         journal_upload = st.file_uploader(
             choice.journal_label,
@@ -222,7 +222,16 @@ def render_setup_wizard() -> None:
             st.error("Upload a data file first.")
             return
 
-        vault = connect_vault_path()
+        vault = (
+            client_vault_path(company_name.strip())
+            if company_name.strip()
+            else connect_vault_path()
+        )
+        try:
+            assert_can_add_vault(vault)
+        except ConnectorError as exc:
+            st.error(str(exc))
+            return
         existing = vault_voucher_count(vault)
         st.session_state["setup_pending"] = {
             "source": import_source,
@@ -230,6 +239,7 @@ def render_setup_wizard() -> None:
             "tally_host": tally_host,
             "journal_path": str(journal_path) if journal_path else None,
             "map_path": str(map_path) if map_path else None,
+            "vault": str(vault),
             "force": existing > 0,
             "needs_confirm": existing > 0,
             "voucher_count": existing,

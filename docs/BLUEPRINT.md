@@ -127,7 +127,7 @@ flowchart LR
 
 ### Phase 6: Enterprise Live-Sync & Production Hardening
 
-1. **Direct TallyPrime HTTP Listener**
+1. **Direct TallyPrime HTTP Listener — done** (`ssdv connect --source tally-http`)
    - connect to Tally’s local XML HTTP port (e.g. `http://localhost:9000`)
    - extract DayBook and Master vouchers on demand (no manual CSV/XML exports)
 2. **Database Engine Switch (PostgreSQL / ClickHouse)**

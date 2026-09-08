@@ -7,6 +7,7 @@ from ssdv.ingest import ingest_generic
 from ssdv.officemitra.setup_flow import (
     SourceChoice,
     ingest_meta_as_of,
+    source_choices,
     validate_vault,
     vault_has_data,
     vault_voucher_count,
@@ -85,3 +86,8 @@ def test_source_choice_flags() -> None:
     assert live.needs_upload is False
     assert upload.needs_upload is True
     assert upload.upload_journal_types == ["csv"]
+
+
+def test_source_choices_include_export_csv_apps() -> None:
+    ids = {choice.id for choice in source_choices()}
+    assert {"generic", "tally", "tally-http", "zoho", "busy", "mitrabooks"} <= ids

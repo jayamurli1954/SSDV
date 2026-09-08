@@ -4,9 +4,12 @@ Goal: scale SSDV / OfficeMitra for production-grade installs, CA firms, and mult
 
 ## Current Status (so far)
 
-- `pytest` suite: **82/82 passing**
 - Phase 1–4: integrated
-- **Multi-State GST**: implemented and unit-tested (GST split now respects warehouse branch state)
+- **Multi-State GST**: implemented and unit-tested
+- **TallyPrime HTTP live pull**: implemented (`--source tally-http`) — not a Phase 6 future item
+- **CA Pack firm roster**: implemented (`ssdv firm` + Streamlit **All client books**) — per-vault revenue / AR 90+ / cash, gated by license `company_limit`. This is **not** group consolidation.
+
+Still planned (not in this drop): 43B(h) depth, GSTR-2B, Schedule III, DuPont, Postgres/ClickHouse, inter-company consolidation, scheduled dispatch, live Zoho/Xero APIs.
 
 ## Mermaid Diagram
 
@@ -64,9 +67,9 @@ flowchart LR
 
 ### Phase 6: Enterprise Live-Sync & Production Hardening
 
-1. **Direct TallyPrime HTTP Listener**
-   - Connect directly to Tally’s local XML HTTP port (e.g. `http://localhost:9000`)
-   - Extract DayBook + Master vouchers on demand (no manual CSV/XML export)
+1. **Direct TallyPrime HTTP Listener — done**
+   - `ssdv connect --source tally-http --host http://localhost:9000`
+   - Remaining Phase 6 items below are still planned.
 
 2. **Database Engine Switch (PostgreSQL / ClickHouse)**
    - SQLAlchemy URL configuration support:
@@ -92,9 +95,9 @@ flowchart LR
 
 ## Suggested Sequencing (Practical Monetization Order)
 
-1. Phase 5.1 (43B(h) MSME risk) + Phase 5.2 (GSTR-2B reconciliation)
-2. Schedule III + DuPont diagnostic
-3. Live-sync (TallyPrime HTTP listener)
+1. ~~CA Pack firm roster (cross-client revenue / AR 90+ / cash)~~ **shipped**
+2. Phase 5.1 (43B(h) MSME risk) + Phase 5.2 (GSTR-2B reconciliation)
+3. Schedule III + DuPont diagnostic
 4. Consolidation + scheduled dispatch
 5. Database engine switch once concurrency becomes a real constraint
 

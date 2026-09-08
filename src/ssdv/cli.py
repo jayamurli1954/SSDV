@@ -34,12 +34,19 @@ from ssdv.models import (
     SalesInvoice,
     Vendor,
 )
-from ssdv.officemitra import render_board_pdf, render_dashboard
+from ssdv.officemitra import render_board_pdf, render_dashboard, render_firm_html
+from ssdv.officemitra.firm import (
+    assert_can_add_vault,
+    build_roster,
+    client_vault_path,
+    roster_as_dicts,
+)
 from ssdv.paths import (
     connect_db_path,
     default_board_pack_path,
     default_dashboard_path,
     default_db_path,
+    default_firm_path,
     ingest_db_path,
     is_frozen,
     load_company,
@@ -410,6 +417,37 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
         return 0 if snap.equation.holds else 1
 
 
+def cmd_firm(args: argparse.Namespace) -> int:
+    roster = build_roster(args.as_of)
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "as_of": roster.as_of.isoformat(),
+                    "company_limit": roster.company_limit,
+                    "hidden": roster.hidden,
+                    "clients": roster_as_dicts(roster),
+                },
+                indent=2,
+            )
+        )
+        return 0
+    out: Path = args.out
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(render_firm_html(roster), encoding="utf-8")
+    print(f"Wrote:    {out}")
+    print(f"Clients:  {len(roster.rows)}")
+    if roster.hidden:
+        print(f"Hidden:   {roster.hidden} (company limit {roster.company_limit})")
+    for row in roster.rows:
+        err = f"  ERROR {row.error}" if row.error else ""
+        print(
+            f"{row.company:<32}  sales {row.sales:>14,.2f}  "
+            f"AR90+ {row.ar_90:>12,.2f}  cash {row.cash:>14,.2f}{err}"
+        )
+    return 0
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
     import importlib.util
     import os
@@ -516,6 +554,18 @@ def _sidecar_db(args: argparse.Namespace, sidecar: Path) -> Path:
     return db
 
 
+def _connect_destination(args: argparse.Namespace, sidecar: Path) -> Path:
+    db_path = _sidecar_db(args, sidecar)
+    name = getattr(args, "name", None)
+    if (
+        name
+        and args.db.resolve() == default_db_path().resolve()
+        and db_path.resolve() == sidecar.resolve()
+    ):
+        return client_vault_path(str(name))
+    return db_path
+
+
 def _print_connectors() -> int:
     print(f"{'id':<14} {'status':<12} title")
     for item in list_connectors():
@@ -524,7 +574,8 @@ def _print_connectors() -> int:
     print()
     print("SSDV reads exports only. It never writes back to Tally, Zoho, Busy, or MitraBooks.")
     print(
-        "Ready paths: journal CSV (--source generic), TallyPrime XML (--source tally), "
+        "Ready: journal CSV (--source generic, zoho, busy, or mitrabooks), "
+        "TallyPrime XML (--source tally), "
         "or live TallyPrime pull (--source tally-http --host http://localhost:9000)."
     )
     return 0
@@ -537,8 +588,9 @@ def _cmd_load_external(args: argparse.Namespace, sidecar: Path, verb: str) -> in
     if source != "tally-http" and args.journals is None:
         print(f"ssdv {verb} needs --journals PATH (or use --list).")
         return 1
-    db_path = _sidecar_db(args, sidecar)
+    db_path = _connect_destination(args, sidecar)
     try:
+        assert_can_add_vault(db_path)
         result = load_into_vault(
             db_path,
             source=source,
@@ -565,6 +617,7 @@ def _cmd_load_external(args: argparse.Namespace, sidecar: Path, verb: str) -> in
     print(f"Next: ssdv --db {db_path} validate --as-of {result.last_date.isoformat()}")
     print(f"      ssdv --db {db_path} mis --as-of {result.last_date.isoformat()} --pack ceo")
     print(f"      ssdv --db {db_path} ui --as-of {result.last_date.isoformat()}")
+    print(f"      ssdv firm --as-of {result.last_date.isoformat()}")
     return 0
 
 
@@ -683,6 +736,20 @@ def build_parser() -> argparse.ArgumentParser:
     dash.add_argument("--host", default=None)
     dash.set_defaults(func=cmd_dashboard)
 
+    firm = sub.add_parser(
+        "firm",
+        help="List every client vault: revenue, AR 90+, cash (CA Pack roster)",
+    )
+    firm.add_argument("--as-of", type=_parse_date, default=date(2026, 3, 31))
+    firm.add_argument(
+        "--out",
+        type=Path,
+        default=default_firm_path(),
+        help="HTML path (default: data/firm.html)",
+    )
+    firm.add_argument("--json", action="store_true", help="Print the roster as JSON")
+    firm.set_defaults(func=cmd_firm)
+
     ui = sub.add_parser("ui", help="Open the Streamlit OfficeMitra dashboard in a browser")
     ui.add_argument("--as-of", type=_parse_date, default=date(2026, 3, 31))
     ui.add_argument("--scenario", choices=list(scenario_ids()), default=None)
@@ -718,7 +785,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--source",
         choices=sources,
         default="generic",
-        help="generic CSV is ready; other names print the export hint",
+        help="generic / zoho / busy / mitrabooks CSV, tally XML, or tally-http",
     )
     ing.add_argument("--journals", type=Path, default=None, help="CSV journal lines")
     ing.add_argument("--map", type=Path, default=None, help="CSV or YAML ledger -> account_code")
@@ -738,7 +805,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--source",
         choices=sources,
         default="generic",
-        help="generic CSV is the universal adapter until native extracts exist",
+        help="generic / zoho / busy / mitrabooks CSV, tally XML, or tally-http",
     )
     conn.add_argument("--journals", type=Path, default=None, help="CSV journal / day-book export")
     conn.add_argument("--map", type=Path, default=None, help="CSV or YAML ledger -> account_code")

@@ -249,12 +249,12 @@ Upload standard CSV or XML daybooks from TallyPrime, Zoho Books, Busy, or generi
 
 ![Connect Pipeline Overview](client/images/workflow-overview.png)
 
-SSDV does **not** log into Tally / Zoho / Busy / MitraBooks. You **export** a journal / day book to CSV, map ledger names to SSDV account codes, then SSDV posts into a **sidecar** vault.
+SSDV does **not** log into Zoho / Busy / MitraBooks. TallyPrime can be pulled live over HTTP, or you can export XML. Other apps **export** a journal / day book to CSV, map ledger names to SSDV account codes, then SSDV posts into a **sidecar** vault.
 
 ```
 Any app  --export CSV-->  journals.csv + ledger_map.csv
-                         --ssdv connect-->  data\ssdv_connect.sqlite
-                         --ssdv ui / mis-->  KPIs, charts, AI notes
+                         --ssdv connect --name "Client"-->  data\ssdv_<client>.sqlite
+                         --ssdv firm / ui-->  roster, then KPIs
 ```
 
 ### 6.1 Which sources are ready
@@ -265,54 +265,53 @@ Any app  --export CSV-->  journals.csv + ledger_map.csv
 
 | id | Status today | What you do |
 | --- | --- | --- |
-| `generic` | **ready** | Use this. CSV journals + map. |
-| `tally` | export CSV | Export vouchers from Tally, then `--source generic`. |
-| `zoho` | export CSV | Export journals from Zoho Books, then `--source generic`. |
-| `busy` | export CSV | Export vouchers from Busy, then `--source generic`. |
-| `mitrabooks` | export CSV | Export journals, or open an existing SSDV `.sqlite` in the Vault list. |
+| `generic` | **ready** | CSV journals + map. |
+| `tally` | **ready** | TallyPrime DayBook **XML** (`--source tally`). |
+| `tally-http` | **ready** | Live pull from TallyPrime on port 9000. |
+| `zoho` | export CSV | Export journals from Zoho Books (same CSV as generic). |
+| `busy` | export CSV | Export vouchers from Busy (same CSV as generic). |
+| `mitrabooks` | export CSV | Export journals from MitraBooks (same CSV as generic). |
 
 ### 6.2 Upload in the browser
 
 1. Start the UI (any vault is fine).
 2. Sidebar **Screen** → **Connect**.
-3. **Journal CSV** — required. Shape: section 7.
+3. **Journal CSV or Tally XML** — required. CSV shape: section 7.
 4. **Ledger map** — recommended (CSV or YAML). Shape: section 7.
-5. **Company name** — appears on packs (for example `Acme Trading Pvt Ltd`).
-6. Tick **Replace books already in the connect vault** if `ssdv_connect.sqlite` already has data.
+5. **Company name** — appears on packs and names the client vault (`ssdv_<slug>.sqlite`).
+6. Confirm overwrite if that client vault already has data.
 7. **Extract and post into SSDV**.
-8. Sidebar **Screen** → **CEO**. Set **As of** to the last date in your file.
+8. With two or more client vaults, open **All client books**, then open one book for CEO / CFO / Board.
 
-SSDV writes only to `data\ssdv_connect.sqlite`. It does not change `ssdv.sqlite`.
+SSDV writes a **separate SQLite vault per named company**. It does not change `ssdv.sqlite` unless you pass `--db` to that file.
 
 ### 6.3 Connect from PowerShell
 
 ```powershell
 cd D:\SSDV
 .\.venv\Scripts\ssdv.exe connect --source generic --journals C:\Exports\journals.csv --map C:\Exports\ledger_map.csv --name "Your Company Pvt Ltd" --force
-.\.venv\Scripts\ssdv.exe --db data/ssdv_connect.sqlite validate --as-of 2025-03-31
-.\.venv\Scripts\ssdv.exe --db data/ssdv_connect.sqlite mis --as-of 2025-03-31 --pack ceo
-.\.venv\Scripts\ssdv.exe --db data/ssdv_connect.sqlite ui --as-of 2025-03-31
+.\.venv\Scripts\ssdv.exe --db data/ssdv_your-company-pvt-ltd.sqlite validate --as-of 2025-03-31
+.\.venv\Scripts\ssdv.exe --db data/ssdv_your-company-pvt-ltd.sqlite mis --as-of 2025-03-31 --pack ceo
+.\.venv\Scripts\ssdv.exe firm --as-of 2025-03-31
+.\.venv\Scripts\ssdv.exe --db data/ssdv_your-company-pvt-ltd.sqlite ui --as-of 2025-03-31
 ```
 
 Change `--as-of` to the last voucher date in *your* CSV.
 
-`--force` wipes the connect vault and reloads. Without `--force`, a vault that already has vouchers is refused.
+`--force` wipes **that** client vault and reloads. Without `--force`, a vault that already has vouchers is refused.
 
 `ssdv ingest` is the same pipeline but writes `data\ssdv_ingest.sqlite` (older name). Prefer `ssdv connect`.
 
 ### 6.4 Tally / Zoho / Busy / MitraBooks in practice
 
-Until native adapters exist, export a **journal register / day book** with one **row per debit or credit line** (not one row per voucher).
+**TallyPrime XML** and **TallyPrime HTTP** are wired. For Zoho, Busy, and MitraBooks, export a **journal register / day book** with one **row per debit or credit line** (not one row per voucher).
 
-Typical Tally path: Display → Account Books → Journal / Day Book → export CSV. Rename columns to the names in section 7, or keep aliases SSDV already accepts (`ledger`, `dr`, `cr`, `vch_date`, …).
-
-Then:
+Typical Tally path if you are not using live HTTP: Display → Account Books → Day Book → export XML, then `--source tally`. Or export CSV and use `--source generic`.
 
 ```powershell
-.\.venv\Scripts\ssdv.exe connect --source generic --journals .\tally_daybook.csv --map .\ledger_map.csv --name "Your Tally Company" --force
+.\.venv\Scripts\ssdv.exe connect --source tally --journals .\daybook.xml --name "Your Tally Company" --force
+.\.venv\Scripts\ssdv.exe connect --source zoho --journals .\zoho_journals.csv --map .\ledger_map.csv --name "Your Zoho Company" --force
 ```
-
-`--source tally` (or zoho / busy / mitrabooks) only prints the export hint and exits. That is expected.
 
 Imported books have **no planted SSDV cause**. OfficeMitra may only explain numbers that are in the posted ledger.
 

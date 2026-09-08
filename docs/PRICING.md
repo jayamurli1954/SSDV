@@ -71,7 +71,7 @@ OfficeMitra uses a **one-time desktop license + annual maintenance (AMC)** model
 | **Starter** | “See your business in one screen.” |
 | **Professional** | “Your AI CFO for a growing company.” |
 | **Enterprise** | “One group, five entities — consolidated MIS.” |
-| **CA Packs** | “Client portfolio dashboard for your practice.” |
+| **CA Packs** | “Client portfolio dashboard for your practice” — **All client books** in OfficeMitra / `ssdv firm`. Not group consolidation. |
 
 **Enterprise vs Professional:** Professional is **one company**, full analytics. Enterprise is **five companies/branches (same owner)** plus group consolidation, Tally HTTP, and GSTR-2B — not “the same price for the same thing.”
 

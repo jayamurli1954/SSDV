@@ -25,6 +25,12 @@ from ssdv.officemitra.charts import (
     scorecard_points,
 )
 from ssdv.officemitra.dashboard import render_dashboard
+from ssdv.officemitra.firm import (
+    apply_company_limit,
+    discover_vaults,
+    effective_company_limit,
+    summarize_vault,
+)
 from ssdv.officemitra.setup_flow import vault_has_data
 from ssdv.officemitra.setup_wizard import render_setup_wizard
 from ssdv.paths import default_db_path, user_data_dir
@@ -224,6 +230,21 @@ def _payload(db_path: str, as_of: str) -> dict:
 
             peer = load_baseline_peer(snap.as_of, exclude=Path(db_path))
         return snapshot_payload(snap, "all", peer=peer)
+
+
+@st.cache_data(show_spinner="Reading client books...")
+def _firm_row(db_path: str, as_of: str) -> dict:
+    row = summarize_vault(Path(db_path), date.fromisoformat(as_of))
+    return {
+        "db_path": str(row.db_path),
+        "vault": row.vault_label,
+        "company": row.company,
+        "sales": str(row.sales),
+        "cash": str(row.cash),
+        "ar_90": str(row.ar_90),
+        "working_capital": str(row.working_capital),
+        "error": row.error or "",
+    }
 
 
 def _note(tone: str, text: str) -> None:
@@ -771,6 +792,51 @@ def _render_charts(payload: dict) -> None:
         _bars(aging_points(payload, "ap_aging"), "AP aging")
 
 
+def _render_firm(rows: list[dict], *, hidden: int, limit: int | None, as_of: date) -> None:
+    st.markdown('<div class="om-kicker">Practice</div>', unsafe_allow_html=True)
+    st.subheader("Client books")
+    st.caption(
+        "Each row is a separate vault. Open a book for the CEO pack. "
+        "This is not a consolidated group P&L."
+    )
+    if hidden:
+        cap = limit if limit is not None else "the plan"
+        _note(
+            "warning",
+            f"{hidden} further vault(s) are hidden by the company limit ({cap}).",
+        )
+    if not rows:
+        st.write("No posted client books yet. Use **Change data source** to import one.")
+        return
+    for row in rows:
+        if row.get("error"):
+            _note("danger", f"{row['company']}: {row['error']}")
+    st.dataframe(
+        [
+            {
+                "Client": row["company"],
+                "Revenue": row["sales"],
+                "AR 90+": row["ar_90"],
+                "Cash": row["cash"],
+                "Working capital": row["working_capital"],
+                "Vault": row["vault"],
+            }
+            for row in rows
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+    labels = [f"{row['company']} ({row['vault']})" for row in rows]
+    by_label = dict(zip(labels, rows, strict=True))
+    chosen = st.selectbox("Open a client book", labels, key="firm_open_choice")
+    if st.button("Open selected book", type="primary", key="firm_open_btn"):
+        target = by_label[chosen]
+        st.session_state.pending_vault = target["db_path"]
+        st.session_state.pending_screen = "CEO"
+        st.rerun()
+    st.caption(f"As of {as_of.isoformat()}. Same facts as `ssdv firm`.")
+
+
 def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> None:
     st.markdown('<div class="om-kicker">Posted books</div>', unsafe_allow_html=True)
     st.subheader(str(payload.get("company") or ""))
@@ -820,6 +886,18 @@ def main() -> None:
         st.session_state.screen = st.session_state.pop("pending_screen")
     data_dir = user_data_dir() / "data"
     found = sorted(str(path) for path in data_dir.glob("*.sqlite")) if data_dir.exists() else []
+    posted = discover_vaults(data_dir if data_dir.exists() else None)
+    visible, hidden = apply_company_limit(posted)
+    show_firm = len(visible) > 1 or hidden > 0
+    screens = (
+        ["Firm", "CEO", "CFO", "Board", "Charts", "Connect"]
+        if show_firm
+        else ["CEO", "CFO", "Board", "Charts", "Connect"]
+    )
+    if "screen" not in st.session_state:
+        st.session_state.screen = "Firm" if show_firm else "CEO"
+    elif st.session_state.screen not in screens:
+        st.session_state.screen = screens[0]
 
     with st.sidebar:
         st.markdown('<div class="om-kicker">OfficeMitra</div>', unsafe_allow_html=True)
@@ -836,8 +914,9 @@ def main() -> None:
             st.rerun()
         st.radio(
             "Screen",
-            ["CEO", "CFO", "Board", "Charts", "Connect"],
+            screens,
             format_func=lambda s: {
+                "Firm": "All client books",
                 "CEO": "CEO pack",
                 "CFO": "CFO pack",
                 "Board": "Board pack",
@@ -846,6 +925,9 @@ def main() -> None:
             }.get(s, s),
             key="screen",
         )
+        if show_firm and st.button("All client books"):
+            st.session_state.pending_screen = "Firm"
+            st.rerun()
         if st.button("Change data source"):
             st.session_state["show_setup"] = True
             st.session_state.pop("setup_complete", None)
@@ -873,6 +955,15 @@ def main() -> None:
         "Read-only KPIs and AI notes from posted journals. "
         "Not a live login to Tally, Zoho, Busy, or MitraBooks."
     )
+
+    if screen == "Firm":
+        rows = [_firm_row(str(path), as_of.isoformat()) for path in visible]
+        _render_firm(rows, hidden=hidden, limit=effective_company_limit(), as_of=as_of)
+        return
+
+    if show_firm and st.button("← All client books", key="back_to_firm"):
+        st.session_state.pending_screen = "Firm"
+        st.rerun()
 
     if not Path(db_path).exists():
         st.error("No books loaded yet. Use **Change data source** in the sidebar to import.")
