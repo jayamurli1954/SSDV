@@ -19,7 +19,7 @@
 2. [What OfficeMitra does](#2-what-officemitra-does)
 3. [Install on your PC](#3-install-on-your-pc)
 4. [Daily workflow](#4-daily-workflow)
-5. [The five screens (packs)](#5-the-five-screens-packs)
+5. [The screens (packs)](#5-the-screens-packs)
 6. [Connect your accounting software](#6-connect-your-accounting-software)
 7. [Workflow tips](#7-workflow-tips)
 8. [Glossary (plain English)](#8-glossary-plain-english)
@@ -33,7 +33,7 @@
 
 ## 1. Welcome
 
-OfficeMitra turns your **exported accounting journals** into clear **CEO, CFO, and Board** views — KPI tiles, charts, red flags, cash forecast, customer/vendor lists, and a downloadable Board PDF.
+OfficeMitra turns your **exported accounting journals** into clear **CEO, CFO, and Board** views — KPI tiles, charts, red flags, cash forecast, customer/vendor lists, Excel, a Board PDF, and a Board PPT once the books are reviewed.
 
 **Important:** OfficeMitra runs **on your computer**. Your books are stored in a local file (`data\ssdv_connect.sqlite`). SanMitra does not receive your data unless **you** choose to send an export or screenshot for support.
 
@@ -63,7 +63,8 @@ OfficeMitra turns your **exported accounting journals** into clear **CEO, CFO, a
 | --- | --- | --- |
 | **Owner / CEO** | CEO pack | Revenue, margin, cash, collections, what-if ideas |
 | **Finance / CA / CFO** | CFO pack | DSO, aging, GST, bank, 30/60/90 cash forecast, vendors |
-| **Director / Board** | Board pack | Red flags, policy scorecard, benchmarks, PDF for meetings |
+| **Director / Board** | Board pack | Red flags, policy scorecard, benchmarks, PDF / PPT for meetings |
+| **CA / practice** | All client books | Revenue, AR 90+, cash, quality, reviewed — then open one book |
 | **Analyst** | Chart pack | Trends and aging charts |
 | **First-time setup** | Connect | Upload your CSV export |
 
@@ -92,7 +93,7 @@ You do **not** need Python. Full steps: [CLIENT_INSTALL.md](CLIENT_INSTALL.md).
 ```text
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
 │ Export journals │ ──► │ Connect (upload) │ ──► │ CEO / CFO / Board   │
-│ from ERP/Excel  │     │ in OfficeMitra   │     │ packs + Board PDF   │
+│ from ERP/Excel  │     │ in OfficeMitra   │     │ packs + Excel / PDF │
 └─────────────────┘     └──────────────────┘     └─────────────────────┘
 ```
 
@@ -104,29 +105,35 @@ You do **not** need Python. Full steps: [CLIENT_INSTALL.md](CLIENT_INSTALL.md).
 | 2 | Start OfficeMitra (desktop / Applications icon) |
 | 3 | Sidebar → **Connect** → upload CSV + ledger map |
 | 4 | Set **As of** to your report date (usually month-end or year-end) |
-| 5 | Review **CEO pack** (performance), **CFO pack** (cash & aging), **Board pack** (red flags) |
-| 6 | **Download Board pack (PDF)** for the meeting |
-| 7 | Close the browser; close the OfficeMitra status window to stop |
+| 5 | Check **Quality** on the pack header. For imported books, add a `.budget.yaml` beside the vault if you want sales vs budget (and a higher score) |
+| 6 | Review **CEO pack** (performance), **CFO pack** (cash & aging), **Board pack** (red flags) |
+| 7 | Click **Mark books reviewed for this as-of** when you are happy with the snapshot |
+| 8 | **Download Excel** always; **Download Board pack (PDF)** for the meeting; **Download Board PPT** when quality is at least 70 and books are reviewed |
+| 9 | Close the browser; close the OfficeMitra status window to stop |
 
 ### Which database (vault) am I using?
 
 | Vault file | Meaning |
 | --- | --- |
-| `ssdv_connect.sqlite` | **Your company** — created when you use Connect |
+| `ssdv_connect.sqlite` | **Your company** — created when you use Connect without a distinct company name |
+| `ssdv_<company>.sqlite` | **Named client book** — created when Connect has a company name |
 | `ssdv.sqlite` | **Demo company** (ABC Industrial) — for training only |
 
 On the installed app these files live under **Windows** `%LOCALAPPDATA%\OfficeMitra\data` or **Mac** `~/Library/Application Support/OfficeMitra/data`.
+
+With **two or more** posted books, the landing screen is **All client books**. Pick a row, then **Open selected book**.
 
 In the sidebar **Vault** dropdown, pick the file that matches your company.
 
 ---
 
-## 5. The five screens (packs)
+## 5. The screens (packs)
 
 Use the sidebar **Screen** radio buttons.
 
 | Screen | What you see |
 | --- | --- |
+| **All client books** | Practice roster (two or more vaults): revenue, AR 90+, cash, quality, reviewed. Not a group consolidation. |
 | **CEO pack** | KPI tiles, AI notes, top overdue customers, benchmarks, what-if scenarios, sales vs COGS, profit charts, Ask Why |
 | **CFO pack** | Cash 30/60/90 forecast, DSO/DIO/DPO/CCC, GST, bank position, AR/AP aging, top customers & vendors |
 | **Board pack** | Red flags first, balance sheet tiles, policy scorecard, benchmarks, top party tables |
@@ -139,6 +146,8 @@ Use the sidebar **Screen** radio buttons.
 | --- | --- |
 | **Download full report (HTML)** | Printable CEO-style report — open in Edge, **Ctrl+P** to save as PDF |
 | **Download Board pack (PDF)** | A4 Board summary — red flags, scorecard, benchmarks, cash forecast, what-if |
+| **Download Excel** | Workbook with KPIs plus Budget vs actual and Data quality sheets |
+| **Download Board PPT** | Unlocked only when **Quality ≥ 70** and you have clicked **Mark books reviewed for this as-of** |
 
 ---
 
@@ -231,6 +240,15 @@ Use the sidebar **Screen** radio buttons.
 ### 5.6 Executive MIS & AI Copilot Overview
 ![OfficeMitra AI / SSDV Infographic & Executive Overview](client/images/officemitra-infographic.png)
 
+### 5.7 Quality score, review, and Board PPT
+
+Each pack header shows **Quality** (0–100) and **Reviewed / Not reviewed**.
+
+- Quality comes from the same book-integrity checks as the technical validate command (trial balance, accounting equation). It is not an AI score.
+- Imported books without a sales budget file lose points. Put `<vault-name>.budget.yaml` next to the SQLite file with `sales: 180000` (or a `fy:` map). Copy from `examples\generic_ingest\budget.yaml` and rename it to match the vault.
+- Click **Mark books reviewed for this as-of** when you have checked the snapshot. Reloading journals or changing the as-of date clears that lock — review again.
+- **Download Board PPT** stays hidden until quality is at least **70** and books are reviewed. Excel and PDF always download.
+
 ---
 
 ## 6. Connect your accounting software
@@ -283,7 +301,8 @@ Without a map, every account name in your export must already be a valid code.
 3. **Company name** — appears on reports  
 4. **Replace books** — tick when reloading a full fresh export  
 5. Click **Extract and post into SSDV**  
-6. Switch to **CEO pack** and set **As of** date  
+6. With two or more client books, open **All client books**, then open one book  
+7. Switch to **CEO pack** and set **As of** date  
 
 ---
 
@@ -299,7 +318,7 @@ Shortcut: click **Use ABC year-end 31 Mar 2026** when viewing the demo vault onl
 
 - **Monday:** CEO pack — sales, margin, collections, what-if  
 - **Mid-week:** CFO pack — cash forecast, aging, GST, top overdue customers  
-- **Before board meeting:** Board pack + **Download Board pack (PDF)**
+- **Before board meeting:** Board pack + **Mark books reviewed** + **Download Board pack (PDF)** (and PPT if unlocked)
 
 ### Tip 3 — Collection action from CFO pack
 
@@ -334,6 +353,10 @@ Browser screenshots often cut off content. Instead: **Download full report (HTML
 | **Red flag** | Board-level exception (policy breach, negative cash, etc.) |
 | **What-if** | Recommendation only — “if DSO improved…” — books are **not** changed |
 | **Vault** | The SQLite file holding posted journals for one book |
+| **Quality score** | 0–100 from book-integrity checks — not AI. PPT needs 70 or more. |
+| **Reviewed** | You confirmed this as-of snapshot. Required (with quality ≥ 70) before Board PPT. |
+| **Sales vs budget** | Optional `.budget.yaml` next to the vault. Variance is actual minus budget. |
+| **All client books** | Roster of local client vaults for a CA practice. Not a group consolidation. |
 
 More detail: [USER_MANUAL.md](USER_MANUAL.md) section 9.
 
@@ -354,6 +377,8 @@ More detail: [USER_MANUAL.md](USER_MANUAL.md) section 9.
 | **Connect vault already has data** | Tick **Replace books** |
 | **Ask Why does nothing** | Ollama is optional — install separately; KPI packs work without it |
 | **Edge screenshot cuts off page** | Use **Download full report (HTML)** or **Board pack (PDF)** |
+| **No Download Board PPT** | Quality below 70, or books not marked reviewed for this as-of. Add a budget file if the caption asks for one, then **Mark books reviewed**. |
+| **Not reviewed after reload** | Expected. A new extract or a different as-of date needs a fresh review. |
 
 Still stuck? Email **contact@sanmitratech.in** with screenshots.
 
@@ -375,15 +400,15 @@ Still stuck? Email **contact@sanmitratech.in** with screenshots.
 
 ### Does it work with Tally Prime?
 
-**Yes**, via CSV export + Connect. Native live Tally API is not required.
+**Yes.** Export Day Book as CSV (or XML) and use Connect. Technical installs can also pull live from TallyPrime on port 9000 (`tally-http`). OfficeMitra still never writes back to Tally.
 
 ### Will it change my Tally / Zoho data?
 
-**Never.** SSDV is read-only. It only reads the CSV you upload.
+**Never.** SSDV is read-only. It only reads the CSV (or Tally XML / HTTP extract) you ask it to load.
 
 ### Can my CA use the same install?
 
-**Yes.** Share the vault file or sit together on one PC. Many CAs use **CFO pack** and **Board PDF**.
+**Yes.** Share the vault file or sit together on one PC. With several client vaults, use **All client books**. Many CAs use **CFO pack**, **Board PDF**, and gated **Board PPT**.
 
 ### What file should I back up?
 
@@ -399,7 +424,11 @@ Still stuck? Email **contact@sanmitratech.in** with screenshots.
 
 ### What-if scenarios — are they real forecasts?
 
-They are **recommend-only** calculations from **posted** facts (for example “if DSO were 120 days…”). They do not change journals and are not a substitute for a full budget model.
+They are **recommend-only** calculations from **posted** facts (for example “if DSO were 120 days…”). They do not change journals and are not a substitute for a full budget model. Optional sales vs budget uses a small `.budget.yaml` sidecar, not the what-if cards.
+
+### Why is Board PPT missing?
+
+PPT is gated on purpose. Quality must be **at least 70** and you must click **Mark books reviewed for this as-of**. Excel and PDF are always available. Reloading books clears the review lock.
 
 ### Industry benchmarks?
 
@@ -409,7 +438,7 @@ OfficeMitra compares to **SSDV policy bands** and an optional **ABC baseline** d
 
 ## 11. Optional: Ask Why (AI)
 
-**Ask Why** (CEO pack chips and typed questions) uses **local Ollama** with a language model. It is **optional** — all KPIs, charts, PDFs, and party lists work without AI.
+**Ask Why** (CEO pack chips and typed questions) uses **local Ollama** with a language model. It is **optional** — all KPIs, charts, Excel, PDFs, PPT, and party lists work without AI.
 
 To enable:
 
@@ -425,7 +454,7 @@ The AI may only use numbers from your posted books — it must not invent custom
 
 | Do | Don't |
 | --- | --- |
-| Back up `data\*.sqlite` regularly | Run `init --force` on a vault unless SanMitra/CA tells you to |
+| Back up `data\*.sqlite` (and `.budget.yaml` / `.review.json` if you use them) regularly | Run `init --force` on a vault unless SanMitra/CA tells you to |
 | Keep exports (CSV) in a dated folder | Paste PowerShell **output** back as commands |
 | Use **Replace books** for full reloads | Share vault files over unsecured channels without consent |
 | Contact support before reinstalling if unsure | Install SSDV into **global** Python (breaks other tools) |

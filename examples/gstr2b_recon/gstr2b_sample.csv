@@ -1,0 +1,5 @@
+return_period,supplier_gstin,supplier_name,invoice_no,invoice_date,taxable,cgst,sgst,igst,itc_available
+2024-04,27AABCT1332L1ZV,Acme Components Pvt Ltd,AC/24-25/1042,08-04-2024,80000.00,7200.00,7200.00,0.00,Y
+2024-04,27AABCT1332L1ZV,Acme Components Pvt Ltd,AC/24-25/1108,22-04-2024,25000.00,2250.00,2250.00,0.00,Y
+2024-04,29AABCU9603R1ZM,South Steel Traders,SST-7781,15-04-2024,10000.00,0.00,0.00,1800.00,Y
+2024-04,24AAACS1234A1Z5,Unknown Portal Vendor,PORTAL-ONLY-1,18-04-2024,5000.00,450.00,450.00,0.00,Y

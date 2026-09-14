@@ -216,6 +216,54 @@ def cmd_purchases(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_purchase_bills(args: argparse.Namespace) -> int:
+    """Load invoice-level purchase register CSV (GSTR-2B recon detail; no extra GL)."""
+    from ssdv.ingest.purchase_bills import load_purchase_bills_csv
+
+    engine = make_engine(_db(args))
+    create_schema(engine)
+    with session_scope(engine) as session:
+        result = load_purchase_bills_csv(session, args.csv)
+        total = session.scalar(select(func.count()).select_from(PurchaseBill))
+        print(f"Database: {_db(args)}")
+        print(
+            f"Purchase register +{result.bills} loaded  "
+            f"(vendors created {result.vendors_created}, skipped {result.skipped})  "
+            f"total bills {total}"
+        )
+    return 0
+
+
+def cmd_gstr2b(args: argparse.Namespace) -> int:
+    """Load GSTR-2B CSV and optionally print a quick recon summary."""
+    from ssdv.forensics.gstr2b_recon import load_gstr2b_csv, reconcile_2b
+    from ssdv.models import Gstr2bLine
+
+    engine = make_engine(_db(args))
+    create_schema(engine)
+    with session_scope(engine) as session:
+        loaded = load_gstr2b_csv(session, args.csv)
+        total = session.scalar(select(func.count()).select_from(Gstr2bLine))
+        print(f"Database: {_db(args)}")
+        print(f"GSTR-2B lines +{loaded} this run, total {total}")
+        if args.recon:
+            summary = reconcile_2b(session, args.period)
+            print(
+                f"Recon  portal ITC {summary.total_portal_itc}  "
+                f"books ITC {summary.total_books_itc}  "
+                f"gap {summary.itc_gap}  "
+                f"flags {len(summary.rows)}"
+            )
+            for row in summary.rows[:15]:
+                print(
+                    f"  {row.flag:<18} {row.supplier_gstin}  {row.invoice_no}  "
+                    f"diff {row.diff_gst}"
+                )
+            if len(summary.rows) > 15:
+                print(f"  … {len(summary.rows) - 15} more")
+    return 0
+
+
 def cmd_sales(args: argparse.Namespace) -> int:
     engine = make_engine(_db(args))
     create_schema(engine)
@@ -711,6 +759,24 @@ def build_parser() -> argparse.ArgumentParser:
 
     pur = sub.add_parser("purchases", help="Generate purchase bills, GRN and input GST")
     pur.set_defaults(func=cmd_purchases)
+
+    pbill = sub.add_parser(
+        "purchase-bills",
+        help="Import invoice-level purchase register CSV for GSTR-2B recon (no extra GL)",
+    )
+    pbill.add_argument(
+        "--csv",
+        type=Path,
+        required=True,
+        help="Purchase register CSV (supplier_gstin, invoice_no, invoice_date, taxable, cgst, sgst, igst)",
+    )
+    pbill.set_defaults(func=cmd_purchase_bills)
+
+    g2b = sub.add_parser("gstr2b", help="Load GSTR-2B CSV into the vault")
+    g2b.add_argument("--csv", type=Path, required=True, help="GSTR-2B invoice CSV from portal / export")
+    g2b.add_argument("--recon", action="store_true", help="Print recon summary vs purchase_bills")
+    g2b.add_argument("--period", default=None, help="Optional return_period filter (YYYY-MM)")
+    g2b.set_defaults(func=cmd_gstr2b)
 
     sales = sub.add_parser("sales", help="Generate sales invoices, COGS and output GST")
     sales.set_defaults(func=cmd_sales)

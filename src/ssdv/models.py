@@ -229,7 +229,8 @@ class StockMove(Base):
 
 class PurchaseBill(Base):
     __tablename__ = "purchase_bills"
-    __table_args__ = (UniqueConstraint("bill_no"),)
+    # Invoice numbers repeat across vendors; GSTR-2B matches on GSTIN + invoice_no.
+    __table_args__ = (UniqueConstraint("vendor_code", "bill_no", name="uq_purchase_vendor_bill"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     bill_no: Mapped[str] = mapped_column(String(32), nullable=False)

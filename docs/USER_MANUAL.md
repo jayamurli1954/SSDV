@@ -116,13 +116,21 @@ Sidebar: vault `ssdv_connect.sqlite`, as of **2024-04-30**, screen **CEO**.
 
 | Screen | What you see |
 | --- | --- |
+| **All client books** | CA Pack roster when two or more vaults are posted: revenue, AR 90+, cash, quality score, reviewed. Click through to one book. Hidden if the license `company_limit` is reached. |
 | **CEO** | 14 KPI tiles, **top overdue customers**, benchmarks vs SSDV policy, **what-if scenarios (recommend-only)**, sales vs COGS, gross margin, collections, P&L mix, monthly profit, why-notes, why chips, optional typed question |
 | **CFO** | Cash forecast 30/60/90 from open AR/AP (no sales plan), GST input/output/net, bank position, aging 0-30 through 120+, **top overdue customers and top vendor exposure**, DSO / DIO / DPO / CCC |
 | **Board** | Red flags first, then assets / liabilities / equity, working-capital parts, policy scorecard, **benchmarks vs SSDV policy and ABC trading baseline** (not an industry survey), cash-cycle days, **top overdue / vendor tables** |
 | **Charts** | Activity, sales vs COGS, cash movement, margin, P&L mix, monthly profit, aging |
 | **Connect** | Upload a journal CSV + optional ledger map (read-only extract) |
 
-**Download Board pack (PDF)** writes an A4 pack (red flags, Board tiles, scorecard, benchmarks, 30/60/90 cash, what-if, top overdue customers, top vendor exposure). Journals are not changed. PPT is not in this pack. **Download full report (HTML)** is the CEO screen; open it in Edge and **Ctrl+P** if you want a print of that page.
+Every pack screen shows **Quality** (0–100) and **Reviewed / Not reviewed**. Downloads:
+
+| Button | Output |
+| --- | --- |
+| **Download full report (HTML)** | CEO screen; open in Edge and **Ctrl+P** for a print |
+| **Download Board pack (PDF)** | A4 pack (red flags, Board tiles, scorecard, benchmarks, 30/60/90 cash, what-if, top overdue / vendors). Meta line includes quality and reviewed. Journals are not changed. |
+| **Download Excel** | Always available. Extra sheets: Budget vs actual, Data quality. |
+| **Download Board PPT** | Unlocked only when quality is **≥ 70** and books are **marked reviewed** for this as-of. Otherwise a caption explains the block. |
 
 All numbers come from **posted journals**. Unbalanced books never get a chart.
 
@@ -244,6 +252,30 @@ Upload standard CSV or XML daybooks from TallyPrime, Zoho Books, Busy, or generi
 ### 5.6 Executive MIS Architecture & AI Copilot Overview
 
 ![OfficeMitra AI / SSDV Business Analyst Infographic](client/images/officemitra-infographic.png)
+
+### 5.7 Quality score, review lock, budget, Excel, Board PPT
+
+OfficeMitra computes a **data quality score** from the same `validate` gates used on the CLI (trial balance, accounting equation, and the other v1 checks). It is not an LLM score.
+
+| Band | Score | Meaning |
+| --- | --- | --- |
+| high | 90–100 | Gates hold |
+| medium | 70–89 | Usable; PPT can unlock after review |
+| low | 0–69 | PPT stays blocked |
+
+Deductions (imported client vaults):
+
+- Integrity gate fail (TB / equation): **−50**
+- Other gate fail: **−8** each
+- No sales budget sidecar next to an imported vault: **−12**
+
+Generated ABC books do not take the missing-budget deduction (they already have a company plan).
+
+**Mark books reviewed for this as-of** writes `data\<vault-stem>.review.json`. Review is valid only for that **as-of date** and **voucher count**. Reload journals or change as-of and you must review again.
+
+**Board PPT** needs **score ≥ 70** and a current review. Excel and PDF are not gated.
+
+Optional sales budget: save `data\<vault-stem>.budget.yaml` next to the SQLite file (section 7.4). The pack then shows sales vs budget. Sample: `examples\generic_ingest\budget.yaml`.
 
 ## 6. Connect another application (read-only)
 
@@ -415,6 +447,29 @@ Headers (`100000` Assets, `200000` Liabilities, …) are **not** postable.
 
 Full list: `src/ssdv/data/coa.yaml`.
 
+### 7.4 Sales budget sidecar (optional)
+
+For an imported vault, save a YAML file **next to** the SQLite file, named `<vault-stem>.budget.yaml` (`.yml` is also accepted).
+
+Example for `data\ssdv_sample-traders-pvt-ltd.sqlite`:
+
+```text
+# data/ssdv_sample-traders-pvt-ltd.budget.yaml
+sales: 180000
+```
+
+Or per financial year:
+
+```text
+fy:
+  FY2024-25: 180000
+  FY2025-26: 210000
+```
+
+Keys accepted: `sales`, `revenue`, or `fy:` map. Without this file, imported books lose 12 quality points and the pack caption asks you to add it. Generated ABC books use the company plan instead.
+
+Sample: `examples\generic_ingest\budget.yaml`. Copy it beside the client vault and rename to match the stem.
+
 ## 8. PowerShell CLI reference
 
 Global flag (before the subcommand):
@@ -451,6 +506,8 @@ If you omit `--db`, generator commands use `data\ssdv.sqlite`. `connect` with no
 .\.venv\Scripts\ssdv.exe ledger 130000 --as-of 2026-03-31
 ```
 
+`validate` also prints a **QUALITY** line: score, band (high / medium / low), whether books are reviewed, and whether Board PPT is allowed.
+
 ### 8.3 KPIs and dashboard without the browser
 
 ```powershell
@@ -461,13 +518,19 @@ If you omit `--db`, generator commands use `data\ssdv.sqlite`. `connect` with no
 .\.venv\Scripts\ssdv.exe mis --pack ceo --json --as-of 2026-03-31
 .\.venv\Scripts\ssdv.exe dashboard --as-of 2026-03-31
 .\.venv\Scripts\ssdv.exe dashboard --pdf --as-of 2026-03-31
+.\.venv\Scripts\ssdv.exe dashboard --pdf --excel --as-of 2026-03-31
+.\.venv\Scripts\ssdv.exe dashboard --ppt --as-of 2026-03-31
 ```
 
 `dashboard` writes `data\mis.html`. Open that file in a browser.
 
 `dashboard --pdf` writes `data\board-pack.pdf` (Board pack from posted journals).
 
-`--json` is the contract for any other UI: tiles, monthly series, aging, insights.
+`dashboard --excel` writes a sibling `.xlsx` (Budget vs actual + Data quality sheets). `--excel` is not gated.
+
+`dashboard --ppt` writes a sibling `.pptx` only when quality is ≥ 70 **and** books are reviewed for that as-of. If blocked, the CLI prints `PPT blocked: …` and exits with code **2**.
+
+`--json` is the contract for any other UI: tiles, monthly series, aging, insights, plus `data_quality_score`, `reviewed`, `ppt_allowed`, and `budget_vs_actual`.
 
 ### 8.4 Scenarios (known-cause seeds for OfficeMitra)
 
@@ -505,7 +568,20 @@ The model may use only the MIS JSON (posted facts). It must not invent a cause t
 
 In Streamlit, CEO why chips (`Why did profit fall?`, `Why is cash negative?`, `Why is inventory rising?`, `Why is AR over 90 days up?`, `Which customers drive concentration?`) call the same harness. A typed question still works. The chips and notes use posted journals only; they do not invent a customer or a cause.
 
-### 8.6 Tests
+### 8.6 Firm roster and review lock
+
+```powershell
+.\.venv\Scripts\ssdv.exe firm --as-of 2026-03-31
+.\.venv\Scripts\ssdv.exe firm --as-of 2026-03-31 --json
+.\.venv\Scripts\ssdv.exe --db data/ssdv_sample-traders-pvt-ltd.sqlite review --as-of 2024-04-30
+.\.venv\Scripts\ssdv.exe --db data/ssdv_sample-traders-pvt-ltd.sqlite dashboard --as-of 2024-04-30 --excel --ppt
+```
+
+`ssdv firm` lists every posted vault under `data\` (revenue, AR 90+, cash, quality score, reviewed). It writes `data\firm.html`. Company count follows the license `company_limit` (CA Pack 5 / 20 / 50). This is **not** group consolidation.
+
+`ssdv review --as-of` is the CLI equivalent of **Mark books reviewed for this as-of**. It writes `<vault-stem>.review.json` beside the database.
+
+### 8.7 Tests
 
 ```powershell
 cd D:\SSDV
@@ -535,18 +611,27 @@ cd D:\SSDV
 | **Collection efficiency** | Receipts ÷ sales for the period. |
 | **Operating working capital** | AR + inventory − AP. |
 | **As of** | The date of the snapshot. For ABC full books use **31 Mar 2026**. A date *after* year-end (for example 30 Apr 2026) shows an empty new year (sales 0, “revenue decreased 100%”). |
+| **Quality score** | 0–100 from validate gates (not AI). Imported vaults without a budget sidecar lose 12 points. PPT needs ≥ 70. |
+| **Reviewed** | Local lock for this vault + as-of + voucher count. Required (with score ≥ 70) before Board PPT. Stale after a reload. |
+| **Sales vs budget** | Optional `<vault-stem>.budget.yaml`. Variance is actual − budget. Not a full budget model. |
+| **All client books** | CA Pack roster of local SQLite vaults. Not a group consolidation pack. |
 
 ## 10. Files on disk
 
 | Path | Role |
 | --- | --- |
 | `data\ssdv.sqlite` | ABC Industrial generated vault |
-| `data\ssdv_connect.sqlite` | Connected / uploaded journals |
+| `data\ssdv_connect.sqlite` | Connected / uploaded journals (unnamed connect) |
+| `data\ssdv_<slug>.sqlite` | Named client vault from `--name` |
 | `data\ssdv_ingest.sqlite` | Older ingest sidecar |
 | `data\ssdv_<scenario>.sqlite` | Scenario vaults |
+| `data\<stem>.review.json` | Review lock for that vault (as-of + voucher count) |
+| `data\<stem>.budget.yaml` | Optional sales budget for imported books |
 | `data\mis.html` | Static CEO HTML from `ssdv dashboard` |
 | `data\board-pack.pdf` | Board pack PDF from `ssdv dashboard --pdf` |
-| `examples\generic_ingest\` | Sample CSV + map |
+| `data\firm.html` | CA Pack roster from `ssdv firm` |
+| `data\*.xlsx` / `*.pptx` | Excel always; PPT only after review + score ≥ 70 |
+| `examples\generic_ingest\` | Sample CSV, map, and `budget.yaml` |
 | `.venv\` | Python environment (not in Git) |
 
 SQLite files are **gitignored**. They stay on your PC; they are not on GitHub.
@@ -567,6 +652,8 @@ SQLite files are **gitignored**. They stay on your PC; they are not on GitHub.
 | `generic` / `Vouchers` / `Next:` errors in PowerShell | You pasted program output. Ignore it; type only real commands |
 | Unified-Next preflight pytest mismatch | Do not pip-install SSDV or Streamlit into global Python |
 | Edge screenshot is only the window | Download HTML report → open file → Ctrl+P → Save as PDF |
+| `PPT blocked` / no **Download Board PPT** | Quality below 70, or books not reviewed for this as-of. Run `validate`, add a budget sidecar if imported, then **Mark books reviewed** or `ssdv review --as-of` |
+| Quality dropped after Connect | Review sidecar is stale (as-of or voucher count changed). Review again. Missing `.budget.yaml` also deducts 12 on imported books |
 
 ## 12. Safety
 
@@ -591,6 +678,12 @@ cd D:\SSDV
 # Your export
 .\.venv\Scripts\ssdv.exe connect --source generic --journals C:\Exports\journals.csv --map C:\Exports\ledger_map.csv --name "Your Company" --force
 .\.venv\Scripts\ssdv.exe --db data/ssdv_connect.sqlite mis --pack ceo --as-of YYYY-MM-DD
+
+# Quality, review, Excel, gated PPT
+.\.venv\Scripts\ssdv.exe --db data/ssdv.sqlite validate --as-of 2026-03-31
+.\.venv\Scripts\ssdv.exe --db data/ssdv.sqlite review --as-of 2026-03-31
+.\.venv\Scripts\ssdv.exe --db data/ssdv.sqlite dashboard --as-of 2026-03-31 --excel --ppt
+.\.venv\Scripts\ssdv.exe firm --as-of 2026-03-31
 ```
 
 Blueprint (locked company rules): [BLUEPRINT.md](BLUEPRINT.md).

@@ -124,13 +124,21 @@ cd D:\SSDV
 <p><img src="client/images/screens-overview.png" alt="OfficeMitra Dashboard Screens Overview"></p>
 <table>
 <tr><th>Screen</th><th>What you see</th></tr>
+<tr><td>**All client books**</td><td>CA Pack roster when two or more vaults are posted: revenue, AR 90+, cash, quality score, reviewed. Click through to one book. Hidden if the license `company_limit` is reached.</td></tr>
 <tr><td>**CEO**</td><td>14 KPI tiles, **top overdue customers**, benchmarks vs SSDV policy, **what-if scenarios (recommend-only)**, sales vs COGS, gross margin, collections, P&L mix, monthly profit, why-notes, why chips, optional typed question</td></tr>
 <tr><td>**CFO**</td><td>Cash forecast 30/60/90 from open AR/AP (no sales plan), GST input/output/net, bank position, aging 0-30 through 120+, **top overdue customers and top vendor exposure**, DSO / DIO / DPO / CCC</td></tr>
 <tr><td>**Board**</td><td>Red flags first, then assets / liabilities / equity, working-capital parts, policy scorecard, **benchmarks vs SSDV policy and ABC trading baseline** (not an industry survey), cash-cycle days, **top overdue / vendor tables**</td></tr>
 <tr><td>**Charts**</td><td>Activity, sales vs COGS, cash movement, margin, P&L mix, monthly profit, aging</td></tr>
 <tr><td>**Connect**</td><td>Upload a journal CSV + optional ledger map (read-only extract)</td></tr>
 </table>
-<p><strong>Download Board pack (PDF)</strong> writes an A4 pack (red flags, Board tiles, scorecard, benchmarks, 30/60/90 cash, what-if, top overdue customers, top vendor exposure). Journals are not changed. PPT is not in this pack. <strong>Download full report (HTML)</strong> is the CEO screen; open it in Edge and <strong>Ctrl+P</strong> if you want a print of that page.</p>
+<p>Every pack screen shows <strong>Quality</strong> (0–100) and <strong>Reviewed / Not reviewed</strong>. Downloads:</p>
+<table>
+<tr><th>Button</th><th>Output</th></tr>
+<tr><td>**Download full report (HTML)**</td><td>CEO screen; open in Edge and **Ctrl+P** for a print</td></tr>
+<tr><td>**Download Board pack (PDF)**</td><td>A4 pack (red flags, Board tiles, scorecard, benchmarks, 30/60/90 cash, what-if, top overdue / vendors). Meta line includes quality and reviewed. Journals are not changed.</td></tr>
+<tr><td>**Download Excel**</td><td>Always available. Extra sheets: Budget vs actual, Data quality.</td></tr>
+<tr><td>**Download Board PPT**</td><td>Unlocked only when quality is **≥ 70** and books are **marked reviewed** for this as-of. Otherwise a caption explains the block.</td></tr>
+</table>
 <p>All numbers come from <strong>posted journals</strong>. Unbalanced books never get a chart.</p>
 <h3>5.1 CEO Pack Dashboard</h3>
 <p>The <strong>CEO Pack</strong> provides executive visibility into overall business health, revenue momentum, liquidity, and operational levers:</p>
@@ -212,13 +220,29 @@ cd D:\SSDV
 <hr>
 <h3>5.6 Executive MIS Architecture & AI Copilot Overview</h3>
 <p><img src="client/images/officemitra-infographic.png" alt="OfficeMitra AI / SSDV Business Analyst Infographic"></p>
+<h3>5.7 Quality score, review lock, budget, Excel, Board PPT</h3>
+<p>OfficeMitra computes a <strong>data quality score</strong> from the same <code>validate</code> gates used on the CLI (trial balance, accounting equation, and the other v1 checks). It is not an LLM score.</p>
+<table>
+<tr><th>Band</th><th>Score</th><th>Meaning</th></tr>
+<tr><td>high</td><td>90–100</td><td>Gates hold</td></tr>
+<tr><td>medium</td><td>70–89</td><td>Usable; PPT can unlock after review</td></tr>
+<tr><td>low</td><td>0–69</td><td>PPT stays blocked</td></tr>
+</table>
+<p>Deductions (imported client vaults):</p>
+<li>Integrity gate fail (TB / equation): **−50**</li>
+<li>Other gate fail: **−8** each</li>
+<li>No sales budget sidecar next to an imported vault: **−12**</li>
+<p>Generated ABC books do not take the missing-budget deduction (they already have a company plan).</p>
+<p><strong>Mark books reviewed for this as-of</strong> writes <code>data\<vault-stem>.review.json</code>. Review is valid only for that <strong>as-of date</strong> and <strong>voucher count</strong>. Reload journals or change as-of and you must review again.</p>
+<p><strong>Board PPT</strong> needs <strong>score ≥ 70</strong> and a current review. Excel and PDF are not gated.</p>
+<p>Optional sales budget: save <code>data\<vault-stem>.budget.yaml</code> next to the SQLite file (section 7.4). The pack then shows sales vs budget. Sample: <code>examples\generic_ingest\budget.yaml</code>.</p>
 <h2>6. Connect another application (read-only)</h2>
 <p><img src="client/images/workflow-overview.png" alt="Connect Pipeline Overview"></p>
-<p>SSDV does <strong>not</strong> log into Tally / Zoho / Busy / MitraBooks. You <strong>export</strong> a journal / day book to CSV, map ledger names to SSDV account codes, then SSDV posts into a <strong>sidecar</strong> vault.</p>
+<p>SSDV does <strong>not</strong> log into Zoho / Busy / MitraBooks. TallyPrime can be pulled live over HTTP, or you can export XML. Other apps <strong>export</strong> a journal / day book to CSV, map ledger names to SSDV account codes, then SSDV posts into a <strong>sidecar</strong> vault.</p>
 <pre><code>
 Any app  --export CSV--&gt;  journals.csv + ledger_map.csv
-                         --ssdv connect--&gt;  data\ssdv_connect.sqlite
-                         --ssdv ui / mis--&gt;  KPIs, charts, AI notes
+                         --ssdv connect --name "Client"--&gt;  data\ssdv_&lt;client&gt;.sqlite
+                         --ssdv firm / ui--&gt;  roster, then KPIs
 </code></pre>
 <h3>6.1 Which sources are ready</h3>
 <pre><code>
@@ -226,41 +250,42 @@ Any app  --export CSV--&gt;  journals.csv + ledger_map.csv
 </code></pre>
 <table>
 <tr><th>id</th><th>Status today</th><th>What you do</th></tr>
-<tr><td>`generic`</td><td>**ready**</td><td>Use this. CSV journals + map.</td></tr>
-<tr><td>`tally`</td><td>export CSV</td><td>Export vouchers from Tally, then `--source generic`.</td></tr>
-<tr><td>`zoho`</td><td>export CSV</td><td>Export journals from Zoho Books, then `--source generic`.</td></tr>
-<tr><td>`busy`</td><td>export CSV</td><td>Export vouchers from Busy, then `--source generic`.</td></tr>
-<tr><td>`mitrabooks`</td><td>export CSV</td><td>Export journals, or open an existing SSDV `.sqlite` in the Vault list.</td></tr>
+<tr><td>`generic`</td><td>**ready**</td><td>CSV journals + map.</td></tr>
+<tr><td>`tally`</td><td>**ready**</td><td>TallyPrime DayBook **XML** (`--source tally`).</td></tr>
+<tr><td>`tally-http`</td><td>**ready**</td><td>Live pull from TallyPrime on port 9000.</td></tr>
+<tr><td>`zoho`</td><td>export CSV</td><td>Export journals from Zoho Books (same CSV as generic).</td></tr>
+<tr><td>`busy`</td><td>export CSV</td><td>Export vouchers from Busy (same CSV as generic).</td></tr>
+<tr><td>`mitrabooks`</td><td>export CSV</td><td>Export journals from MitraBooks (same CSV as generic).</td></tr>
 </table>
 <h3>6.2 Upload in the browser</h3>
 <p>1. Start the UI (any vault is fine).</p>
 <p>2. Sidebar <strong>Screen</strong> → <strong>Connect</strong>.</p>
-<p>3. <strong>Journal CSV</strong> — required. Shape: section 7.</p>
+<p>3. <strong>Journal CSV or Tally XML</strong> — required. CSV shape: section 7.</p>
 <p>4. <strong>Ledger map</strong> — recommended (CSV or YAML). Shape: section 7.</p>
-<p>5. <strong>Company name</strong> — appears on packs (for example <code>Acme Trading Pvt Ltd</code>).</p>
-<p>6. Tick <strong>Replace books already in the connect vault</strong> if <code>ssdv_connect.sqlite</code> already has data.</p>
+<p>5. <strong>Company name</strong> — appears on packs and names the client vault (<code>ssdv_<slug>.sqlite</code>).</p>
+<p>6. Confirm overwrite if that client vault already has data.</p>
 <p>7. <strong>Extract and post into SSDV</strong>.</p>
-<p>8. Sidebar <strong>Screen</strong> → <strong>CEO</strong>. Set <strong>As of</strong> to the last date in your file.</p>
-<p>SSDV writes only to <code>data\ssdv_connect.sqlite</code>. It does not change <code>ssdv.sqlite</code>.</p>
+<p>8. With two or more client vaults, open <strong>All client books</strong>, then open one book for CEO / CFO / Board.</p>
+<p>SSDV writes a <strong>separate SQLite vault per named company</strong>. It does not change <code>ssdv.sqlite</code> unless you pass <code>--db</code> to that file.</p>
 <h3>6.3 Connect from PowerShell</h3>
 <pre><code>
 cd D:\SSDV
 .\.venv\Scripts\ssdv.exe connect --source generic --journals C:\Exports\journals.csv --map C:\Exports\ledger_map.csv --name "Your Company Pvt Ltd" --force
-.\.venv\Scripts\ssdv.exe --db data/ssdv_connect.sqlite validate --as-of 2025-03-31
-.\.venv\Scripts\ssdv.exe --db data/ssdv_connect.sqlite mis --as-of 2025-03-31 --pack ceo
-.\.venv\Scripts\ssdv.exe --db data/ssdv_connect.sqlite ui --as-of 2025-03-31
+.\.venv\Scripts\ssdv.exe --db data/ssdv_your-company-pvt-ltd.sqlite validate --as-of 2025-03-31
+.\.venv\Scripts\ssdv.exe --db data/ssdv_your-company-pvt-ltd.sqlite mis --as-of 2025-03-31 --pack ceo
+.\.venv\Scripts\ssdv.exe firm --as-of 2025-03-31
+.\.venv\Scripts\ssdv.exe --db data/ssdv_your-company-pvt-ltd.sqlite ui --as-of 2025-03-31
 </code></pre>
 <p>Change <code>--as-of</code> to the last voucher date in *your* CSV.</p>
-<p><code>--force</code> wipes the connect vault and reloads. Without <code>--force</code>, a vault that already has vouchers is refused.</p>
+<p><code>--force</code> wipes <strong>that</strong> client vault and reloads. Without <code>--force</code>, a vault that already has vouchers is refused.</p>
 <p><code>ssdv ingest</code> is the same pipeline but writes <code>data\ssdv_ingest.sqlite</code> (older name). Prefer <code>ssdv connect</code>.</p>
 <h3>6.4 Tally / Zoho / Busy / MitraBooks in practice</h3>
-<p>Until native adapters exist, export a <strong>journal register / day book</strong> with one <strong>row per debit or credit line</strong> (not one row per voucher).</p>
-<p>Typical Tally path: Display → Account Books → Journal / Day Book → export CSV. Rename columns to the names in section 7, or keep aliases SSDV already accepts (<code>ledger</code>, <code>dr</code>, <code>cr</code>, <code>vch_date</code>, …).</p>
-<p>Then:</p>
+<p><strong>TallyPrime XML</strong> and <strong>TallyPrime HTTP</strong> are wired. For Zoho, Busy, and MitraBooks, export a <strong>journal register / day book</strong> with one <strong>row per debit or credit line</strong> (not one row per voucher).</p>
+<p>Typical Tally path if you are not using live HTTP: Display → Account Books → Day Book → export XML, then <code>--source tally</code>. Or export CSV and use <code>--source generic</code>.</p>
 <pre><code>
-.\.venv\Scripts\ssdv.exe connect --source generic --journals .\tally_daybook.csv --map .\ledger_map.csv --name "Your Tally Company" --force
+.\.venv\Scripts\ssdv.exe connect --source tally --journals .\daybook.xml --name "Your Tally Company" --force
+.\.venv\Scripts\ssdv.exe connect --source zoho --journals .\zoho_journals.csv --map .\ledger_map.csv --name "Your Zoho Company" --force
 </code></pre>
-<p>TallyPrime XML and TallyPrime HTTP are wired. For Zoho, Busy, and MitraBooks, export a journal CSV (same columns as generic) and connect with <code>--source zoho</code> (or busy / mitrabooks).</p>
 <p>Imported books have <strong>no planted SSDV cause</strong>. OfficeMitra may only explain numbers that are in the posted ledger.</p>
 <h2>7. File formats</h2>
 <p>Sample files: <code>examples\generic_ingest\journals.csv</code> and <code>examples\generic_ingest\ledger_map.csv</code>.</p>
@@ -342,6 +367,21 @@ Capital Account,310000
 <tr><td>660000</td><td>GST late fee</td></tr>
 </table>
 <p>Full list: <code>src/ssdv/data/coa.yaml</code>.</p>
+<h3>7.4 Sales budget sidecar (optional)</h3>
+<p>For an imported vault, save a YAML file <strong>next to</strong> the SQLite file, named <code><vault-stem>.budget.yaml</code> (<code>.yml</code> is also accepted).</p>
+<p>Example for <code>data\ssdv_sample-traders-pvt-ltd.sqlite</code>:</p>
+<pre><code>
+# data/ssdv_sample-traders-pvt-ltd.budget.yaml
+sales: 180000
+</code></pre>
+<p>Or per financial year:</p>
+<pre><code>
+fy:
+  FY2024-25: 180000
+  FY2025-26: 210000
+</code></pre>
+<p>Keys accepted: <code>sales</code>, <code>revenue</code>, or <code>fy:</code> map. Without this file, imported books lose 12 quality points and the pack caption asks you to add it. Generated ABC books use the company plan instead.</p>
+<p>Sample: <code>examples\generic_ingest\budget.yaml</code>. Copy it beside the client vault and rename to match the stem.</p>
 <h2>8. PowerShell CLI reference</h2>
 <p>Global flag (before the subcommand):</p>
 <pre><code>
@@ -367,6 +407,7 @@ Capital Account,310000
 .\.venv\Scripts\ssdv.exe aging --as-of 2026-03-31
 .\.venv\Scripts\ssdv.exe ledger 130000 --as-of 2026-03-31
 </code></pre>
+<p><code>validate</code> also prints a <strong>QUALITY</strong> line: score, band (high / medium / low), whether books are reviewed, and whether Board PPT is allowed.</p>
 <h3>8.3 KPIs and dashboard without the browser</h3>
 <pre><code>
 .\.venv\Scripts\ssdv.exe mis --as-of 2026-03-31
@@ -376,10 +417,14 @@ Capital Account,310000
 .\.venv\Scripts\ssdv.exe mis --pack ceo --json --as-of 2026-03-31
 .\.venv\Scripts\ssdv.exe dashboard --as-of 2026-03-31
 .\.venv\Scripts\ssdv.exe dashboard --pdf --as-of 2026-03-31
+.\.venv\Scripts\ssdv.exe dashboard --pdf --excel --as-of 2026-03-31
+.\.venv\Scripts\ssdv.exe dashboard --ppt --as-of 2026-03-31
 </code></pre>
 <p><code>dashboard</code> writes <code>data\mis.html</code>. Open that file in a browser.</p>
 <p><code>dashboard --pdf</code> writes <code>data\board-pack.pdf</code> (Board pack from posted journals).</p>
-<p><code>--json</code> is the contract for any other UI: tiles, monthly series, aging, insights.</p>
+<p><code>dashboard --excel</code> writes a sibling <code>.xlsx</code> (Budget vs actual + Data quality sheets). <code>--excel</code> is not gated.</p>
+<p><code>dashboard --ppt</code> writes a sibling <code>.pptx</code> only when quality is ≥ 70 <strong>and</strong> books are reviewed for that as-of. If blocked, the CLI prints <code>PPT blocked: …</code> and exits with code <strong>2</strong>.</p>
+<p><code>--json</code> is the contract for any other UI: tiles, monthly series, aging, insights, plus <code>data_quality_score</code>, <code>reviewed</code>, <code>ppt_allowed</code>, and <code>budget_vs_actual</code>.</p>
 <h3>8.4 Scenarios (known-cause seeds for OfficeMitra)</h3>
 <p>These are <strong>separate</strong> databases. They do not change <code>ssdv.sqlite</code>.</p>
 <pre><code>
@@ -407,7 +452,16 @@ Capital Account,310000
 </code></pre>
 <p>The model may use only the MIS JSON (posted facts). It must not invent a cause that is not in the books.</p>
 <p>In Streamlit, CEO why chips (<code>Why did profit fall?</code>, <code>Why is cash negative?</code>, <code>Why is inventory rising?</code>, <code>Why is AR over 90 days up?</code>, <code>Which customers drive concentration?</code>) call the same harness. A typed question still works. The chips and notes use posted journals only; they do not invent a customer or a cause.</p>
-<h3>8.6 Tests</h3>
+<h3>8.6 Firm roster and review lock</h3>
+<pre><code>
+.\.venv\Scripts\ssdv.exe firm --as-of 2026-03-31
+.\.venv\Scripts\ssdv.exe firm --as-of 2026-03-31 --json
+.\.venv\Scripts\ssdv.exe --db data/ssdv_sample-traders-pvt-ltd.sqlite review --as-of 2024-04-30
+.\.venv\Scripts\ssdv.exe --db data/ssdv_sample-traders-pvt-ltd.sqlite dashboard --as-of 2024-04-30 --excel --ppt
+</code></pre>
+<p><code>ssdv firm</code> lists every posted vault under <code>data\</code> (revenue, AR 90+, cash, quality score, reviewed). It writes <code>data\firm.html</code>. Company count follows the license <code>company_limit</code> (CA Pack 5 / 20 / 50). This is <strong>not</strong> group consolidation.</p>
+<p><code>ssdv review --as-of</code> is the CLI equivalent of <strong>Mark books reviewed for this as-of</strong>. It writes <code><vault-stem>.review.json</code> beside the database.</p>
+<h3>8.7 Tests</h3>
 <pre><code>
 cd D:\SSDV
 .\.venv\Scripts\python.exe -m pytest tests -q
@@ -434,17 +488,26 @@ cd D:\SSDV
 <tr><td>**Collection efficiency**</td><td>Receipts ÷ sales for the period.</td></tr>
 <tr><td>**Operating working capital**</td><td>AR + inventory − AP.</td></tr>
 <tr><td>**As of**</td><td>The date of the snapshot. For ABC full books use **31 Mar 2026**. A date *after* year-end (for example 30 Apr 2026) shows an empty new year (sales 0, “revenue decreased 100%”).</td></tr>
+<tr><td>**Quality score**</td><td>0–100 from validate gates (not AI). Imported vaults without a budget sidecar lose 12 points. PPT needs ≥ 70.</td></tr>
+<tr><td>**Reviewed**</td><td>Local lock for this vault + as-of + voucher count. Required (with score ≥ 70) before Board PPT. Stale after a reload.</td></tr>
+<tr><td>**Sales vs budget**</td><td>Optional `<vault-stem>.budget.yaml`. Variance is actual − budget. Not a full budget model.</td></tr>
+<tr><td>**All client books**</td><td>CA Pack roster of local SQLite vaults. Not a group consolidation pack.</td></tr>
 </table>
 <h2>10. Files on disk</h2>
 <table>
 <tr><th>Path</th><th>Role</th></tr>
 <tr><td>`data\ssdv.sqlite`</td><td>ABC Industrial generated vault</td></tr>
-<tr><td>`data\ssdv_connect.sqlite`</td><td>Connected / uploaded journals</td></tr>
+<tr><td>`data\ssdv_connect.sqlite`</td><td>Connected / uploaded journals (unnamed connect)</td></tr>
+<tr><td>`data\ssdv_<slug>.sqlite`</td><td>Named client vault from `--name`</td></tr>
 <tr><td>`data\ssdv_ingest.sqlite`</td><td>Older ingest sidecar</td></tr>
 <tr><td>`data\ssdv_<scenario>.sqlite`</td><td>Scenario vaults</td></tr>
+<tr><td>`data\<stem>.review.json`</td><td>Review lock for that vault (as-of + voucher count)</td></tr>
+<tr><td>`data\<stem>.budget.yaml`</td><td>Optional sales budget for imported books</td></tr>
 <tr><td>`data\mis.html`</td><td>Static CEO HTML from `ssdv dashboard`</td></tr>
 <tr><td>`data\board-pack.pdf`</td><td>Board pack PDF from `ssdv dashboard --pdf`</td></tr>
-<tr><td>`examples\generic_ingest\`</td><td>Sample CSV + map</td></tr>
+<tr><td>`data\firm.html`</td><td>CA Pack roster from `ssdv firm`</td></tr>
+<tr><td>`data\*.xlsx` / `*.pptx`</td><td>Excel always; PPT only after review + score ≥ 70</td></tr>
+<tr><td>`examples\generic_ingest\`</td><td>Sample CSV, map, and `budget.yaml`</td></tr>
 <tr><td>`.venv\`</td><td>Python environment (not in Git)</td></tr>
 </table>
 <p>SQLite files are <strong>gitignored</strong>. They stay on your PC; they are not on GitHub.</p>
@@ -463,6 +526,8 @@ cd D:\SSDV
 <tr><td>`generic` / `Vouchers` / `Next:` errors in PowerShell</td><td>You pasted program output. Ignore it; type only real commands</td></tr>
 <tr><td>Unified-Next preflight pytest mismatch</td><td>Do not pip-install SSDV or Streamlit into global Python</td></tr>
 <tr><td>Edge screenshot is only the window</td><td>Download HTML report → open file → Ctrl+P → Save as PDF</td></tr>
+<tr><td>`PPT blocked` / no **Download Board PPT**</td><td>Quality below 70, or books not reviewed for this as-of. Run `validate`, add a budget sidecar if imported, then **Mark books reviewed** or `ssdv review --as-of`</td></tr>
+<tr><td>Quality dropped after Connect</td><td>Review sidecar is stale (as-of or voucher count changed). Review again. Missing `.budget.yaml` also deducts 12 on imported books</td></tr>
 </table>
 <h2>12. Safety</h2>
 <li>SSDV **never** posts into Tally, Zoho, Busy, or MitraBooks.</li>
@@ -484,6 +549,12 @@ cd D:\SSDV
 # Your export
 .\.venv\Scripts\ssdv.exe connect --source generic --journals C:\Exports\journals.csv --map C:\Exports\ledger_map.csv --name "Your Company" --force
 .\.venv\Scripts\ssdv.exe --db data/ssdv_connect.sqlite mis --pack ceo --as-of YYYY-MM-DD
+
+# Quality, review, Excel, gated PPT
+.\.venv\Scripts\ssdv.exe --db data/ssdv.sqlite validate --as-of 2026-03-31
+.\.venv\Scripts\ssdv.exe --db data/ssdv.sqlite review --as-of 2026-03-31
+.\.venv\Scripts\ssdv.exe --db data/ssdv.sqlite dashboard --as-of 2026-03-31 --excel --ppt
+.\.venv\Scripts\ssdv.exe firm --as-of 2026-03-31
 </code></pre>
 <p>Blueprint (locked company rules): <a href="BLUEPRINT.md">BLUEPRINT.md</a>.</p>
 </div>

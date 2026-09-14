@@ -12,7 +12,9 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ssdv.models import IngestMeta, Voucher
+from ssdv.forensics.gstr2b_recon import reconcile_2b
+from ssdv.licensing import feature_allowed, load_license
+from ssdv.models import Gstr2bLine, IngestMeta, PurchaseBill, Voucher
 from ssdv.money import ZERO, money
 from ssdv.paths import load_yaml
 from ssdv.validate import INTEGRITY_GATES, Gate, run_gates
@@ -21,6 +23,56 @@ PPT_MIN_SCORE = 70
 BUDGET_DEDUCTION = 12
 OTHER_GATE_DEDUCTION = 8
 INTEGRITY_DEDUCTION = 50
+GSTR2B_MAX_DEDUCTION = 20
+
+
+@dataclass(frozen=True)
+class Gstr2bSignal:
+    """Whether GSTR-2B reconciliation ran, and what it found. `checked=False`
+    means the signal did not affect the score — either the plan doesn't
+    include it, or this vault doesn't yet have what it needs to be
+    meaningful (see `reason`)."""
+
+    checked: bool
+    itc_gap: Decimal | None
+    mismatch_count: int
+    deduction: int
+    reason: str | None
+
+
+def _row_count(session: Session, model: type) -> int:
+    return int(session.scalar(select(func.count()).select_from(model)) or 0)
+
+
+def gstr2b_signal(
+    session: Session,
+    *,
+    plan_id: str | None,
+    return_period: str | None = None,
+) -> Gstr2bSignal:
+    """Fold GSTR-2B vs purchase-book reconciliation into the trust score.
+
+    Deliberately no-ops (checked=False, deduction=0) rather than scoring
+    against an empty table: a day-book-only import has no PurchaseBill
+    rows, so comparing a real GSTR-2B download against it would flag every
+    invoice as missing and produce a false, alarming score. Only runs once
+    this vault actually has structured purchase-bill detail to compare.
+    """
+    if not (plan_id and feature_allowed(plan_id, "gstr2b_recon")):
+        return Gstr2bSignal(False, None, 0, 0, "not included in this plan")
+    if _row_count(session, PurchaseBill) == 0:
+        return Gstr2bSignal(
+            False, None, 0, 0,
+            "no structured purchase-bill detail in this vault (day-book import only)",
+        )
+    if _row_count(session, Gstr2bLine) == 0:
+        return Gstr2bSignal(False, None, 0, 0, "no GSTR-2B file loaded for this period")
+    summary = reconcile_2b(session, return_period)
+    if summary.total_portal_itc == ZERO:
+        return Gstr2bSignal(False, None, 0, 0, "GSTR-2B has no ITC lines for this period")
+    materiality = min(Decimal("1"), abs(summary.itc_gap) / summary.total_portal_itc)
+    deduction = int((GSTR2B_MAX_DEDUCTION * materiality).to_integral_value(rounding="ROUND_HALF_UP"))
+    return Gstr2bSignal(True, summary.itc_gap, len(summary.rows), deduction, None)
 
 
 class ExportBlocked(Exception):
@@ -149,6 +201,21 @@ def assess_session(
         "sidecar" if sidecar_budget is not None else ("company_plan" if not imported else "missing")
     )
     score, breakdown = score_from_gates(gates, imported=imported, has_budget=has_budget)
+    license_obj = load_license()
+    signal = gstr2b_signal(
+        session,
+        plan_id=license_obj.plan_id if license_obj else None,
+        return_period=fy_code,
+    )
+    if signal.checked:
+        score = max(0, score - signal.deduction)
+    breakdown["gstr2b"] = {
+        "checked": signal.checked,
+        "itc_gap": None if signal.itc_gap is None else str(money(signal.itc_gap)),
+        "mismatch_count": signal.mismatch_count,
+        "deduction": signal.deduction,
+        "reason": signal.reason,
+    }
     reviewed = read_review(db_path, as_of, voucher_count=_voucher_count(session)) is not None
     reason = None
     if score < PPT_MIN_SCORE:

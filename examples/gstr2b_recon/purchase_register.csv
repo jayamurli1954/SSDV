@@ -1,0 +1,4 @@
+supplier_gstin,supplier_name,invoice_no,invoice_date,taxable,cgst,sgst,igst
+27AABCT1332L1ZV,Acme Components Pvt Ltd,AC/24-25/1042,08-04-2024,80000.00,7200.00,7200.00,0.00
+27AABCT1332L1ZV,Acme Components Pvt Ltd,AC/24-25/1108,22-04-2024,25000.00,2250.00,2250.00,0.00
+29AABCU9603R1ZM,South Steel Traders,SST-7781,15-04-2024,10000.00,0.00,0.00,1800.00
