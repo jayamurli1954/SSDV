@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import html
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import streamlit as st
@@ -11,6 +12,18 @@ import streamlit.components.v1 as components
 from ssdv.ask import AskError, ask_books
 from ssdv.db import create_schema, make_engine, session_scope
 from ssdv.mis import mis_snapshot, snapshot_payload
+from ssdv.mis.policy import PolicyError, build_policy, save_policy, thresholds_path
+from ssdv.mis.runway import Levers, base_from_dict, runway_text, simulate_runway
+from ssdv.money import money
+from ssdv.officemitra.approval import (
+    ApprovalError,
+    approval_sidecar_path,
+    approve,
+    disable_partner_approval,
+    firm_approval_path,
+    set_partner_pin,
+    withdraw_approval,
+)
 from ssdv.officemitra.boardpack import render_board_pdf
 from ssdv.officemitra.branding import brand_icon_path, render_brand_header
 from ssdv.officemitra.charts import (
@@ -31,6 +44,7 @@ from ssdv.officemitra.firm import (
     discover_vaults,
     effective_company_limit,
     summarize_vault,
+    voucher_count,
 )
 from ssdv.officemitra.quality import (
     budget_sidecar_path,
@@ -260,14 +274,20 @@ def _ppt_bytes(payload: dict) -> bytes:
 
 def _sidecar_stamp(db_path: str) -> str:
     bits: list[str] = []
-    for path in (review_sidecar_path(Path(db_path)), budget_sidecar_path(Path(db_path))):
+    for path in (
+        review_sidecar_path(Path(db_path)),
+        budget_sidecar_path(Path(db_path)),
+        approval_sidecar_path(Path(db_path)),
+        firm_approval_path(),
+        thresholds_path(Path(db_path)),
+    ):
         if path.is_file():
             bits.append(f"{path.name}:{path.stat().st_mtime}")
     return "|".join(bits)
 
 
 @st.cache_data(show_spinner="Reading client books...")
-def _firm_row(db_path: str, as_of: str) -> dict:
+def _firm_row(db_path: str, as_of: str, sidecar_stamp: str = "") -> dict:
     row = summarize_vault(Path(db_path), date.fromisoformat(as_of))
     return {
         "db_path": str(row.db_path),
@@ -278,7 +298,10 @@ def _firm_row(db_path: str, as_of: str) -> dict:
         "ar_90": str(row.ar_90),
         "working_capital": str(row.working_capital),
         "score": "" if row.score is None else str(row.score),
-        "reviewed": "yes" if row.reviewed else "no",
+        "reviewed": "approved" if row.approved else "yes" if row.reviewed else "no",
+        "risk": row.risk,
+        "runway": "" if row.error else runway_text(row.runway_months),
+        "top_alert": row.top_alert,
         "error": row.error or "",
     }
 
@@ -436,6 +459,64 @@ def _render_whatif(payload: dict) -> None:
         use_container_width=True,
         hide_index=True,
     )
+
+
+def _render_runway_sandbox(payload: dict) -> None:
+    data = payload.get("runway") or {}
+    if not data or not int(data.get("months_used") or 0):
+        return
+    base = base_from_dict(data)
+    st.markdown("##### Runway sandbox")
+    st.caption(str(data.get("method") or ""))
+    if base.partial_month:
+        _note("neutral", "Only a part month is posted, so the averages below are thin.")
+    left, right = st.columns(2, gap="large")
+    with left:
+        sales_pct = st.slider("Sales change (%)", -30, 50, 0, step=5, key="rw_sales")
+        opex_pct = st.slider("Operating cost change (%)", -30, 30, 0, step=5, key="rw_opex")
+    with right:
+        new_cost = st.number_input(
+            "New monthly cost, e.g. hiring (INR)",
+            min_value=0.0,
+            value=0.0,
+            step=10000.0,
+            key="rw_cost",
+        )
+        ar_max = float(max(base.ar, 0))
+        collected = (
+            st.number_input(
+                f"Receivables collected now (INR, up to {_inr_text(base.ar)})",
+                min_value=0.0,
+                max_value=ar_max,
+                value=0.0,
+                step=10000.0,
+                key="rw_ar",
+            )
+            if ar_max > 0
+            else 0.0
+        )
+    before, after = simulate_runway(
+        base,
+        Levers(
+            sales_change_pct=Decimal(sales_pct),
+            opex_change_pct=Decimal(opex_pct),
+            new_monthly_cost=Decimal(str(new_cost)),
+            ar_collected=Decimal(str(collected)),
+        ),
+    )
+    cols = st.columns(4)
+    cols[0].metric(
+        "Monthly result",
+        _inr_text(after.monthly_result),
+        _inr_text(after.monthly_result - before.monthly_result),
+    )
+    cols[1].metric("Monthly burn", _inr_text(after.burn), f"was {_inr_text(before.burn)}", delta_color="off")
+    cols[2].metric("Cash", _inr_text(after.cash), _inr_text(after.cash - before.cash))
+    if before.runway is not None and after.runway is not None:
+        runway_delta = f"{after.runway - before.runway:+} months"
+    else:
+        runway_delta = f"was {runway_text(before.runway)}"
+    cols[3].metric("Runway", runway_text(after.runway), runway_delta, delta_color="off")
 
 
 def _chart_title(title: str) -> None:
@@ -622,6 +703,7 @@ def _render_ceo(payload: dict, db_path: str, as_of: date) -> None:
     _render_parties(payload, vendors=False)
     _render_benchmarks(payload)
     _render_whatif(payload)
+    _render_runway_sandbox(payload)
     left, right = st.columns(2, gap="large")
     with left:
         _multi_line(payload, [("sales", "Taxable sales"), ("cogs", "COGS")], "Sales vs COGS")
@@ -664,9 +746,135 @@ def _render_ceo(payload: dict, db_path: str, as_of: date) -> None:
                 _note("neutral", answer)
 
 
+def _render_budget_variance(payload: dict) -> None:
+    st.markdown("##### Budget vs actual — variance drivers")
+    report = payload.get("budget_variance")
+    if not isinstance(report, dict):
+        st.caption(
+            "No account budgets for this book. Add an `accounts:` section to the "
+            "`.budget.yaml` file next to the vault (see the user manual, section 7.4)."
+        )
+        return
+    st.caption(str(report.get("method") or ""))
+    impact = money(str(report.get("profit_impact") or "0"))
+    basis = (
+        f"annual budgets pro-rated to {float(report.get('elapsed_pct') or 0):.0%} of the year"
+        if report.get("basis") == "annual"
+        else "budgets taken as to-date amounts"
+    )
+    _note(
+        "success" if impact >= 0 else "warning",
+        f"Budgeted ledgers are {_inr_text(abs(impact))} "
+        f"{'ahead of' if impact >= 0 else 'behind'} budget on profit "
+        f"({report.get('fy_code')}, {basis}).",
+    )
+
+    def _table(rows: list[dict]) -> list[dict]:
+        return [
+            {
+                "Ledger": f"{row.get('name')} ({row.get('code')})",
+                "Type": row.get("type"),
+                "Actual": row.get("actual"),
+                "Budget": row.get("budget"),
+                "Variance": row.get("variance"),
+                "Variance %": (
+                    "" if row.get("variance_pct") is None else f"{float(row['variance_pct']):+.1%}"
+                ),
+                "Profit impact": row.get("profit_impact"),
+                "": "Favourable" if row.get("favourable") else "Adverse",
+            }
+            for row in rows
+        ]
+
+    drivers = list(report.get("drivers") or [])
+    if drivers:
+        st.dataframe(_table(drivers), use_container_width=True, hide_index=True)
+    else:
+        st.write("Every budgeted ledger is exactly on budget.")
+    rows = list(report.get("rows") or [])
+    if len(rows) > len(drivers):
+        with st.expander(f"All {len(rows)} budgeted ledgers"):
+            st.dataframe(_table(rows), use_container_width=True, hide_index=True)
+    if report.get("unmatched"):
+        _note(
+            "warning",
+            "Budget lines with no matching ledger (check the code or name): "
+            + ", ".join(str(item) for item in report["unmatched"]),
+        )
+    if int(report.get("unbudgeted_count") or 0):
+        st.caption(
+            f"{report['unbudgeted_count']} expense ledger(s) with postings have no budget "
+            f"(total {_inr_text(report.get('unbudgeted_expense'))})."
+        )
+
+
+def _render_client_chart(payload: dict) -> None:
+    client = payload.get("client_chart")
+    if not isinstance(client, dict):
+        return
+    with st.expander("Books in the client's own chart of accounts"):
+        st.caption(
+            "The same posted books, shown with this client's own ledger codes, names and "
+            "groups. The standard ledger is what OfficeMitra uses for KPIs. Download Excel "
+            "for the full trial balance and P&L in the client's chart."
+        )
+        view = st.radio(
+            "Show",
+            ["Profit & loss (year to date)", "Trial balance"],
+            horizontal=True,
+            key="client_chart_view",
+        )
+        if view == "Trial balance":
+            st.dataframe(
+                [
+                    {
+                        "Code": row.get("client_code") or "",
+                        "Ledger": row.get("client_name"),
+                        "Group": row.get("client_group") or "",
+                        "Debit": row.get("debit"),
+                        "Credit": row.get("credit"),
+                        "Balance (Dr +)": row.get("balance"),
+                        "Standard": f"{row.get('standard_code')} {row.get('standard_name')}",
+                    }
+                    for row in client.get("trial_balance") or []
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+            st.caption(
+                f"Totals: debit {_inr_text(client.get('tb_total_debit'))} · "
+                f"credit {_inr_text(client.get('tb_total_credit'))}"
+            )
+            return
+        rows = []
+        for block in client.get("pnl") or []:
+            for item in block.get("ledgers") or []:
+                rows.append(
+                    {
+                        "Type": str(block.get("type") or "").title(),
+                        "Group": block.get("group"),
+                        "Code": item.get("client_code") or "",
+                        "Ledger": item.get("client_name"),
+                        "Amount": item.get("amount"),
+                    }
+                )
+            rows.append(
+                {
+                    "Type": "",
+                    "Group": f"Total {block.get('group')}",
+                    "Code": "",
+                    "Ledger": "",
+                    "Amount": block.get("total"),
+                }
+            )
+        st.dataframe(rows, use_container_width=True, hide_index=True)
+
+
 def _render_cfo(payload: dict) -> None:
     st.markdown('<div class="om-kicker">CFO pack</div>', unsafe_allow_html=True)
     _metrics(pack_tiles(payload, "cfo"))
+    _render_budget_variance(payload)
+    _render_client_chart(payload)
     st.markdown("##### Cash forecast (open AR/AP, no sales plan)")
     fc = payload.get("cash_forecast") or {}
     if fc.get("method"):
@@ -731,13 +939,15 @@ def _render_cfo(payload: dict) -> None:
             "Cash cycle (days)",
         )
     with right:
-        _bars(
-            kpi_points(
-                payload,
-                [("hdfc", "HDFC"), ("icici", "ICICI"), ("od", "OD")],
-            ),
-            "Bank position",
-        )
+        banks = list(payload.get("banks") or [])
+        if banks:
+            _named_bars(
+                [str(b.get("label")) for b in banks],
+                [float(b.get("balance") or 0) for b in banks],
+                "Cash and bank position",
+            )
+        else:
+            st.caption("No bank or cash ledgers posted yet.")
     for item in payload.get("insights") or []:
         if item.get("surface") in {"aging", "cfo"}:
             _note(str(item.get("tone") or "neutral"), str(item.get("text") or ""))
@@ -828,12 +1038,17 @@ def _render_charts(payload: dict) -> None:
         _bars(aging_points(payload, "ap_aging"), "AP aging")
 
 
+_RISK_LABEL = {"red": "🔴 Critical", "amber": "🟠 Watch", "green": "🟢 Healthy"}
+
+
 def _render_firm(rows: list[dict], *, hidden: int, limit: int | None, as_of: date) -> None:
     st.markdown('<div class="om-kicker">Practice</div>', unsafe_allow_html=True)
     st.subheader("Client books")
     st.caption(
-        "Each row is a separate vault. Open a book for the CEO pack. "
-        "This is not a consolidated group P&L."
+        "Each row is one client vault (separate SQLite books), as of the date in the sidebar. "
+        "This table is a practice roster — not a consolidated group P&L. "
+        "CEO / CFO / Board / Chart packs only open after you open a client book below "
+        "(or pick that pack in the sidebar with the matching Vault selected)."
     )
     if hidden:
         cap = limit if limit is not None else "the plan"
@@ -847,10 +1062,21 @@ def _render_firm(rows: list[dict], *, hidden: int, limit: int | None, as_of: dat
     for row in rows:
         if row.get("error"):
             _note("danger", f"{row['company']}: {row['error']}")
+    counts = {band: sum(1 for row in rows if row.get("risk") == band) for band in _RISK_LABEL}
+    st.markdown(
+        " · ".join(f"**{counts[band]}** {label}" for band, label in _RISK_LABEL.items())
+    )
+    st.caption(
+        "Sorted by risk, then shortest cash runway. Risk combines the board red flags "
+        "with runway (red below 3 months, amber below 6)."
+    )
     st.dataframe(
         [
             {
+                "Risk": _RISK_LABEL.get(str(row.get("risk") or ""), ""),
                 "Client": row["company"],
+                "Runway": row.get("runway") or "",
+                "Top alert": row.get("top_alert") or "",
                 "Revenue": row["sales"],
                 "AR 90+": row["ar_90"],
                 "Cash": row["cash"],
@@ -867,12 +1093,139 @@ def _render_firm(rows: list[dict], *, hidden: int, limit: int | None, as_of: dat
     labels = [f"{row['company']} ({row['vault']})" for row in rows]
     by_label = dict(zip(labels, rows, strict=True))
     chosen = st.selectbox("Open a client book", labels, key="firm_open_choice")
+    pack = st.selectbox(
+        "Open into pack",
+        ["CEO", "CFO", "Board", "Charts"],
+        format_func=lambda s: {
+            "CEO": "CEO pack",
+            "CFO": "CFO pack",
+            "Board": "Board pack",
+            "Charts": "Chart pack",
+        }[s],
+        key="firm_open_pack",
+    )
     if st.button("Open selected book", type="primary", key="firm_open_btn"):
         target = by_label[chosen]
         st.session_state.pending_vault = target["db_path"]
-        st.session_state.pending_screen = "CEO"
+        st.session_state.pending_screen = pack
         st.rerun()
     st.caption(f"As of {as_of.isoformat()}. Same facts as `ssdv firm`.")
+
+
+def _signoff_label(payload: dict) -> str:
+    approval = payload.get("approval") if isinstance(payload.get("approval"), dict) else {}
+    if approval.get("approved"):
+        return f"Approved by {html.escape(str(approval.get('approved_by') or 'partner'))}"
+    if payload.get("reviewed"):
+        return "Reviewed — awaiting partner approval" if approval.get("required") else "Reviewed"
+    return "Not reviewed"
+
+
+def _render_thresholds(payload: dict, db_path: str) -> None:
+    info = payload.get("thresholds") if isinstance(payload.get("thresholds"), dict) else {}
+    rows = list(info.get("fields") or [])
+    if not rows:
+        return
+    title = "Alert thresholds (custom for this client)" if info.get("custom") else "Alert thresholds (defaults)"
+    with st.expander(title):
+        st.caption(
+            "Limits used for this client's alerts, scorecard, benchmarks, what-if and risk "
+            "band. Change them to suit the business — for example a longer DSO limit for a "
+            "distributor that gives 90-day credit. Saved only for this client book."
+        )
+        values: dict[str, float] = {}
+        cols = st.columns(3)
+        for i, row in enumerate(rows):
+            label = f"{row['label']} ({row['unit']})" + (" *" if row.get("custom") else "")
+            values[row["name"]] = cols[i % 3].number_input(
+                label,
+                value=float(row["value"]),
+                step=1.0 if row["unit"] in {"days", "months"} else 0.5,
+                key=f"threshold_{row['name']}",
+            )
+        st.caption("* differs from the default.")
+        col1, col2 = st.columns(2)
+        if col1.button("Save thresholds for this client", type="primary", key="threshold_save"):
+            try:
+                save_policy(Path(db_path), build_policy(values, percent=True))
+            except PolicyError as exc:
+                st.error(str(exc))
+                return
+            st.cache_data.clear()
+            st.rerun()
+        if info.get("custom") and col2.button("Reset to defaults", key="threshold_reset"):
+            thresholds_path(Path(db_path)).unlink(missing_ok=True)
+            st.cache_data.clear()
+            st.rerun()
+
+
+def _render_partner_approval(payload: dict, db_path: str, as_of: date) -> None:
+    approval = payload.get("approval") if isinstance(payload.get("approval"), dict) else {}
+    required = bool(approval.get("required"))
+    title = "Partner approval" if required else "Partner approval (off)"
+    with st.expander(title, expanded=required and bool(payload.get("reviewed"))):
+        st.caption(
+            "A second sign-off before the Board PPT: the preparer marks the books reviewed, "
+            "then the partner approves with a PIN. This is a sign-off record on this PC, "
+            "not a login — keep the PIN with the partner."
+        )
+        if not required:
+            name = st.text_input("Partner name", key="approval_setup_name")
+            pin = st.text_input("Choose a partner PIN", type="password", key="approval_setup_pin")
+            again = st.text_input("Repeat the PIN", type="password", key="approval_setup_pin2")
+            if st.button("Turn on partner approval", key="approval_setup_btn"):
+                if pin != again:
+                    st.error("The two PINs do not match.")
+                    return
+                try:
+                    set_partner_pin(name, pin)
+                except ApprovalError as exc:
+                    st.error(str(exc))
+                    return
+                st.cache_data.clear()
+                st.rerun()
+            return
+
+        if approval.get("approved"):
+            _note(
+                "success",
+                f"Approved by {html.escape(str(approval.get('approved_by')))} "
+                f"on {str(approval.get('approved_at') or '')[:10]} for this as-of date.",
+            )
+        elif payload.get("reviewed"):
+            _note("warning", "Reviewed. Waiting for the partner to approve.")
+        else:
+            _note("neutral", "Mark the books reviewed first; then the partner can approve.")
+        pin = st.text_input("Partner PIN", type="password", key="approval_pin")
+        col1, _, col3 = st.columns(3)
+        try:
+            if not approval.get("approved") and col1.button(
+                "Approve as partner",
+                type="primary",
+                disabled=not payload.get("reviewed"),
+                key="approval_approve",
+            ):
+                approve(
+                    Path(db_path),
+                    as_of,
+                    voucher_count=voucher_count(Path(db_path)),
+                    reviewed=bool(payload.get("reviewed")),
+                    pin=pin,
+                )
+                st.cache_data.clear()
+                st.rerun()
+            if approval.get("approved") and col1.button(
+                "Withdraw approval", key="approval_withdraw"
+            ):
+                withdraw_approval(Path(db_path), pin=pin)
+                st.cache_data.clear()
+                st.rerun()
+            if col3.button("Turn off partner approval", key="approval_disable"):
+                disable_partner_approval(pin)
+                st.cache_data.clear()
+                st.rerun()
+        except ApprovalError as exc:
+            st.error(str(exc))
 
 
 def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> None:
@@ -887,10 +1240,20 @@ def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> Non
         f"<span>As of {payload.get('as_of')}</span>"
         f"<span>Working capital {wc}</span>"
         f"<span>Quality {score} {band}</span>"
-        f"<span>{'Reviewed' if payload.get('reviewed') else 'Not reviewed'}</span>"
+        f"<span>{_signoff_label(payload)}</span>"
         f"</div>",
         unsafe_allow_html=True,
     )
+    g2b = (payload.get("data_quality_breakdown") or {}).get("gstr2b")
+    if isinstance(g2b, dict):
+        if g2b.get("checked"):
+            st.caption(
+                f"GSTR-2B ITC gap {g2b.get('itc_gap')} · "
+                f"{g2b.get('mismatch_count')} flag(s) · "
+                f"quality −{g2b.get('deduction')} pts"
+            )
+        elif g2b.get("reason"):
+            st.caption(f"GSTR-2B: {g2b.get('reason')}")
     if payload.get("ppt_block_reason") and not payload.get("ppt_allowed"):
         _note("warning", str(payload["ppt_block_reason"]))
     bva = payload.get("budget_vs_actual") if isinstance(payload.get("budget_vs_actual"), dict) else {}
@@ -905,13 +1268,21 @@ def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> Non
             "No budget sidecar for this imported vault. "
             f"Add `{Path(db_path).stem}.budget.yaml` next to the SQLite file (sales: amount)."
         )
+    prepared_by = st.text_input(
+        "Prepared by (optional, shown on the Board PPT)",
+        value=str(st.session_state.get("prepared_by") or ""),
+        key="prepared_by_input",
+    )
     if st.button("Mark books reviewed for this as-of", key="mark_reviewed"):
+        st.session_state["prepared_by"] = prepared_by
         engine = make_engine(Path(db_path))
         create_schema(engine)
         with session_scope(engine) as session:
-            mark_reviewed(Path(db_path), as_of, session=session)
+            mark_reviewed(Path(db_path), as_of, session=session, reviewed_by=prepared_by)
         st.cache_data.clear()
         st.rerun()
+    _render_partner_approval(payload, db_path, as_of)
+    _render_thresholds(payload, db_path)
     st.download_button(
         "Download full report (HTML)",
         data=render_dashboard(payload).encode("utf-8"),
@@ -941,7 +1312,14 @@ def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> Non
             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         )
     else:
-        st.caption("Board PPT stays blocked until quality is at least 70 and books are reviewed.")
+        st.caption(
+            "Board PPT stays blocked until quality is at least 70, books are reviewed"
+            + (
+                ", and the partner has approved."
+                if (payload.get("approval") or {}).get("required")
+                else "."
+            )
+        )
     if screen == "CEO":
         _render_ceo(payload, db_path, as_of)
     elif screen == "CFO":
@@ -977,6 +1355,16 @@ def main() -> None:
         st.session_state.screen = "Firm" if show_firm else "CEO"
     elif st.session_state.screen not in screens:
         st.session_state.screen = screens[0]
+
+    # Sync roster pick → Vault *before* the selectbox widget is created.
+    screen_now = str(st.session_state.get("screen") or "CEO")
+    if show_firm and screen_now in {"CEO", "CFO", "Board", "Charts"}:
+        choice = st.session_state.get("firm_open_choice")
+        if isinstance(choice, str) and "(" in choice and choice.endswith(")"):
+            vault_stem = choice.rsplit("(", 1)[-1][:-1].strip()
+            match = next((str(path) for path in visible if path.stem == vault_stem), None)
+            if match:
+                st.session_state.vault = match
 
     with st.sidebar:
         st.markdown('<div class="om-kicker">OfficeMitra</div>', unsafe_allow_html=True)
@@ -1036,7 +1424,9 @@ def main() -> None:
     )
 
     if screen == "Firm":
-        rows = [_firm_row(str(path), as_of.isoformat()) for path in visible]
+        rows = [
+            _firm_row(str(path), as_of.isoformat(), _sidecar_stamp(str(path))) for path in visible
+        ]
         _render_firm(rows, hidden=hidden, limit=effective_company_limit(), as_of=as_of)
         return
 

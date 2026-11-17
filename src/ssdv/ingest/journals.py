@@ -202,15 +202,24 @@ def grouped_vouchers(lines: list[SourceLine]) -> dict[str, list[SourceLine]]:
 
 
 def drafts_for(
-    group: list[SourceLine], mapping: dict[str, str], known_codes: set[str]
+    group: list[SourceLine],
+    mapping: dict[str, str],
+    known_codes: set[str],
+    registry=None,  # ssdv.ingest.client_chart.LedgerRegistry
 ) -> list[LineDraft]:
     from ssdv.ingest.mapping import resolve_account
 
     drafts: list[LineDraft] = []
     for row in group:
+        if registry is not None:
+            account_code, client_ledger_id = registry.resolve(row.account)
+        else:
+            account_code = resolve_account(row.account, mapping, known_codes)
+            client_ledger_id = None
         drafts.append(
             LineDraft(
-                account_code=resolve_account(row.account, mapping, known_codes),
+                account_code=account_code,
+                client_ledger_id=client_ledger_id,
                 debit=row.debit,
                 credit=row.credit,
                 party_type=row.party_type,

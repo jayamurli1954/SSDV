@@ -55,6 +55,11 @@ def upgrade_schema(engine: Engine) -> None:
             with engine.begin() as conn:
                 for stmt in alters:
                     conn.execute(text(stmt))
+    if "journal_lines" in names and "client_ledger_id" not in _sqlite_columns(
+        engine, "journal_lines"
+    ):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE journal_lines ADD COLUMN client_ledger_id INTEGER"))
 
 
 def create_schema(engine: Engine) -> None:

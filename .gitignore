@@ -10,6 +10,9 @@ dist/
 build/
 data/*.sqlite
 data/*.sqlite-journal
+officemitra.license
+docs/leavebehind_ca_ankit.pdf
+docs/demo_script_ankit_officemitra.pdf
 .streamlit/secrets.toml
 *.log
 .DS_Store

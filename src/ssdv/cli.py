@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -235,19 +236,51 @@ def cmd_purchase_bills(args: argparse.Namespace) -> int:
 
 
 def cmd_gstr2b(args: argparse.Namespace) -> int:
-    """Load GSTR-2B CSV and optionally print a quick recon summary."""
-    from ssdv.forensics.gstr2b_recon import load_gstr2b_csv, reconcile_2b
+    """Load GSTR-2B CSV (or seed from purchase bills) and optionally print recon."""
+    from ssdv.forensics.gstr2b_recon import (
+        load_gstr2b_csv,
+        period_key,
+        reconcile_2b,
+        seed_gstr2b_from_books,
+    )
     from ssdv.models import Gstr2bLine
+
+    if not args.seed_from_books and args.csv is None:
+        print("Provide --csv PATH or --seed-from-books", file=sys.stderr)
+        return 2
 
     engine = make_engine(_db(args))
     create_schema(engine)
     with session_scope(engine) as session:
-        loaded = load_gstr2b_csv(session, args.csv)
-        total = session.scalar(select(func.count()).select_from(Gstr2bLine))
         print(f"Database: {_db(args)}")
-        print(f"GSTR-2B lines +{loaded} this run, total {total}")
-        if args.recon:
-            summary = reconcile_2b(session, args.period)
+        if args.seed_from_books:
+            from ssdv.models import PurchaseBill
+
+            period = args.period
+            if not period:
+                latest = session.scalar(select(PurchaseBill.bill_date).order_by(PurchaseBill.bill_date.desc()))
+                if latest is None:
+                    print("No purchase bills in vault — cannot seed GSTR-2B", file=sys.stderr)
+                    return 1
+                period = period_key(latest)
+            result = seed_gstr2b_from_books(session, return_period=period)
+            print(
+                f"Seeded GSTR-2B from books for {result.period}: "
+                f"{result.portal_rows} portal rows "
+                f"(matched {result.matched}, amount mismatch {result.amount_mismatches}, "
+                f"omitted {result.omitted_from_2b}, portal-only {result.portal_only}) "
+                f"from {result.bills_in_period} purchase bills"
+            )
+        else:
+            loaded = load_gstr2b_csv(session, args.csv)
+            print(f"GSTR-2B lines +{loaded} this run")
+        total = session.scalar(select(func.count()).select_from(Gstr2bLine))
+        print(f"GSTR-2B lines total {total}")
+        if args.recon or args.seed_from_books:
+            period = args.period
+            if args.seed_from_books and not period:
+                period = result.period  # type: ignore[name-defined]
+            summary = reconcile_2b(session, period)
             print(
                 f"Recon  portal ITC {summary.total_portal_itc}  "
                 f"books ITC {summary.total_books_itc}  "
@@ -505,7 +538,9 @@ def cmd_firm(args: argparse.Namespace) -> int:
     for row in roster.rows:
         err = f"  ERROR {row.error}" if row.error else ""
         score_txt = "-" if row.score is None else str(row.score)
+        runway_txt = "-" if row.runway_months is None else f"{row.runway_months}m"
         print(
+            f"{(row.risk or '-').upper():<5}  runway {runway_txt:>6}  "
             f"{row.company:<32}  sales {row.sales:>14,.2f}  "
             f"AR90+ {row.ar_90:>12,.2f}  cash {row.cash:>14,.2f}  "
             f"q {score_txt:>3}  "
@@ -680,6 +715,7 @@ def _cmd_load_external(args: argparse.Namespace, sidecar: Path, verb: str) -> in
             company_name=args.name,
             force=args.force,
             tally_host=getattr(args, "host", None),
+            client_chart=getattr(args, "chart", None),
         )
     except ConnectorNotReady as exc:
         print(str(exc))
@@ -773,9 +809,23 @@ def build_parser() -> argparse.ArgumentParser:
     pbill.set_defaults(func=cmd_purchase_bills)
 
     g2b = sub.add_parser("gstr2b", help="Load GSTR-2B CSV into the vault")
-    g2b.add_argument("--csv", type=Path, required=True, help="GSTR-2B invoice CSV from portal / export")
+    g2b.add_argument(
+        "--csv",
+        type=Path,
+        default=None,
+        help="GSTR-2B invoice CSV from portal / export",
+    )
+    g2b.add_argument(
+        "--seed-from-books",
+        action="store_true",
+        help="Build demo GSTR-2B lines from purchase_bills (match most, plant a few gaps)",
+    )
     g2b.add_argument("--recon", action="store_true", help="Print recon summary vs purchase_bills")
-    g2b.add_argument("--period", default=None, help="Optional return_period filter (YYYY-MM)")
+    g2b.add_argument(
+        "--period",
+        default=None,
+        help="Return period YYYY-MM (required-ish for --seed-from-books; filters --recon)",
+    )
     g2b.set_defaults(func=cmd_gstr2b)
 
     sales = sub.add_parser("sales", help="Generate sales invoices, COGS and output GST")
@@ -915,6 +965,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conn.add_argument("--journals", type=Path, default=None, help="CSV journal / day-book export")
     conn.add_argument("--map", type=Path, default=None, help="CSV or YAML ledger -> account_code")
+    conn.add_argument(
+        "--chart",
+        type=Path,
+        default=None,
+        help="The client's own chart of accounts (CSV: code,name,group). Kept beside the vault.",
+    )
     conn.add_argument("--name", default=None, help="Company legal name for MIS packs")
     conn.add_argument("--force", action="store_true", help="Replace an existing connect vault")
     conn.add_argument(

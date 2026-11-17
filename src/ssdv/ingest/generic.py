@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ssdv.accounting.coa import load_coa
 from ssdv.accounting.posting import PostingError, PostingRequest, post
+from ssdv.ingest.client_chart import ClientChart, LedgerRegistry
 from ssdv.ingest.errors import IngestError
 from ssdv.ingest.journals import drafts_for, grouped_vouchers, load_journal_csv
 from ssdv.ingest.mapping import load_account_map
@@ -32,11 +33,15 @@ def ingest_generic(
     account_map: Path | None = None,
     *,
     company_name: str | None = None,
+    client_chart: ClientChart | None = None,
     source: str = "generic",
 ) -> IngestResult:
     load_coa(session)
     known = set(session.scalars(select(Account.code)))
     mapping = load_account_map(account_map)
+    registry = LedgerRegistry(
+        session, chart=client_chart or ClientChart(), mapping=mapping, known_codes=known
+    )
     lines = load_journal_csv(journals)
     groups = grouped_vouchers(lines)
     for voucher_id, group in groups.items():
@@ -51,7 +56,7 @@ def ingest_generic(
                     voucher_date=head.voucher_date,
                     voucher_type=head.voucher_type,
                     narration=narration[:255],
-                    lines=drafts_for(group, mapping, known),
+                    lines=drafts_for(group, mapping, known, registry),
                     source=source,
                     scenario="imported",
                     source_table="csv",

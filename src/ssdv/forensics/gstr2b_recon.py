@@ -9,16 +9,24 @@ Compares GSTR-2B portal data against booked purchase bills to flag:
 from __future__ import annotations
 
 import csv
+import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from ssdv.models import Gstr2bLine, PurchaseBill
 from ssdv.money import ZERO, money
+
+_PERIOD_RE = re.compile(r"^\d{4}-\d{2}$")
+
+
+def period_key(d: date) -> str:
+    """GSTR-2B return period as YYYY-MM."""
+    return f"{d.year:04d}-{d.month:02d}"
 
 
 @dataclass(frozen=True)
@@ -104,12 +112,14 @@ def reconcile_2b(session: Session, return_period: str | None = None) -> ReconSum
         key = (str(line.supplier_gstin).strip(), str(line.invoice_no).strip().upper())
         portal_lines[key] = line
 
-    # Books side
+    # Books side — when return_period is YYYY-MM, compare only that month's bills
+    # so a single portal file doesn't false-flag every other month as missing_in_2b.
     stmt_bills = select(PurchaseBill)
-    if return_period:
-        stmt_bills = stmt_bills.where(PurchaseBill.fy_code.isnot(None))
     books: dict[tuple[str, str], PurchaseBill] = {}
     for bill in session.scalars(stmt_bills):
+        if return_period and _PERIOD_RE.match(return_period):
+            if period_key(bill.bill_date) != return_period:
+                continue
         gstin = str(bill.vendor_gstin or "").strip()
         bill_no = str(bill.bill_no).strip().upper()
         if gstin:
@@ -179,4 +189,113 @@ def reconcile_2b(session: Session, return_period: str | None = None) -> ReconSum
         total_books_itc=money(total_books),
         itc_gap=money(total_portal - total_books),
         rows=tuple(rows),
+    )
+
+
+@dataclass(frozen=True)
+class SeedFromBooksResult:
+    period: str
+    bills_in_period: int
+    portal_rows: int
+    matched: int
+    omitted_from_2b: int
+    amount_mismatches: int
+    portal_only: int
+
+
+def seed_gstr2b_from_books(
+    session: Session,
+    *,
+    return_period: str,
+    omit_count: int = 4,
+    amount_mismatch_count: int = 3,
+    portal_only_count: int = 2,
+    replace_period: bool = True,
+) -> SeedFromBooksResult:
+    """Build synthetic GSTR-2B lines from booked purchase bills for demos.
+
+    Matches most invoices exactly, then plants a few controlled gaps so
+    reconciliation and the quality ITC signal have something real to show.
+    """
+    if not _PERIOD_RE.match(return_period):
+        raise ValueError(f"return_period must be YYYY-MM, got {return_period!r}")
+
+    bills = [
+        b
+        for b in session.scalars(select(PurchaseBill)).all()
+        if period_key(b.bill_date) == return_period and str(b.vendor_gstin or "").strip()
+    ]
+    bills.sort(key=lambda b: (b.bill_date, b.bill_no))
+    if not bills:
+        raise ValueError(f"No purchase bills with GSTIN in period {return_period}")
+
+    if replace_period:
+        session.execute(delete(Gstr2bLine).where(Gstr2bLine.return_period == return_period))
+        session.flush()
+
+    omit_n = min(max(0, omit_count), max(0, len(bills) - 1))
+    mismatch_n = min(max(0, amount_mismatch_count), max(0, len(bills) - omit_n))
+    # Keep the largest invoices for mismatches so the ITC gap is visible on screen.
+    by_gst = sorted(bills, key=lambda b: abs(b.cgst + b.sgst + b.igst), reverse=True)
+    omit_set = {id(b) for b in by_gst[:omit_n]}
+    mismatch_set = {id(b) for b in by_gst[omit_n : omit_n + mismatch_n]}
+
+    matched = 0
+    amount_mismatches = 0
+    for bill in bills:
+        if id(bill) in omit_set:
+            continue
+        cgst, sgst, igst = money(bill.cgst), money(bill.sgst), money(bill.igst)
+        taxable = money(bill.taxable)
+        if id(bill) in mismatch_set:
+            # Inflate portal GST ~8% so amount_mismatch + positive ITC gap show up.
+            bump = money(Decimal("1.08"))
+            cgst, sgst, igst = money(cgst * bump), money(sgst * bump), money(igst * bump)
+            taxable = money(taxable * bump)
+            amount_mismatches += 1
+        else:
+            matched += 1
+        session.add(
+            Gstr2bLine(
+                return_period=return_period,
+                supplier_gstin=str(bill.vendor_gstin).strip(),
+                supplier_name=None,
+                invoice_no=str(bill.bill_no).strip(),
+                invoice_date=bill.bill_date,
+                taxable=taxable,
+                cgst=cgst,
+                sgst=sgst,
+                igst=igst,
+                itc_available=True,
+            )
+        )
+
+    portal_only = 0
+    for i in range(max(0, portal_only_count)):
+        session.add(
+            Gstr2bLine(
+                return_period=return_period,
+                supplier_gstin="27AABCT1332L1ZV",
+                supplier_name="Portal-only Demo Supplier",
+                invoice_no=f"PORTAL-ONLY-{return_period}-{i + 1}",
+                invoice_date=date(int(return_period[:4]), int(return_period[5:7]), min(28, 10 + i)),
+                taxable=money("25000.00"),
+                cgst=money("2250.00"),
+                sgst=money("2250.00"),
+                igst=ZERO,
+                itc_available=True,
+            )
+        )
+        portal_only += 1
+
+    session.flush()
+    portal_rows = matched + amount_mismatches + portal_only
+    return SeedFromBooksResult(
+        period=return_period,
+        bills_in_period=len(bills),
+        portal_rows=portal_rows,
+        matched=matched,
+        omitted_from_2b=omit_n,
+        amount_mismatches=amount_mismatches,
+        portal_only=portal_only,
     )

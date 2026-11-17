@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from ssdv.accounting.coa import load_coa
 from ssdv.accounting.posting import PostingError, PostingRequest, post
+from ssdv.ingest.client_chart import ClientChart, LedgerRegistry
 from ssdv.ingest.errors import IngestError
 from ssdv.ingest.generic import IngestResult
 from ssdv.ingest.journals import SourceLine, drafts_for, grouped_vouchers, parse_voucher_type
@@ -178,11 +179,15 @@ def ingest_tally_daybook(
     account_map: Path | None = None,
     *,
     company_name: str | None = None,
+    client_chart: ClientChart | None = None,
     source: str = "tally",
 ) -> IngestResult:
     load_coa(session)
     known = set(session.scalars(select(Account.code)))
     mapping = load_account_map(account_map)
+    registry = LedgerRegistry(
+        session, chart=client_chart or ClientChart(), mapping=mapping, known_codes=known
+    )
     lines = load_journal_tally_daybook(daybook_xml)
     groups = grouped_vouchers(lines)
 
@@ -198,7 +203,7 @@ def ingest_tally_daybook(
                     voucher_date=head.voucher_date,
                     voucher_type=head.voucher_type,
                     narration=narration[:255],
-                    lines=drafts_for(group, mapping, known),
+                    lines=drafts_for(group, mapping, known, registry),
                     source=source,
                     scenario="imported",
                     source_table="xml",

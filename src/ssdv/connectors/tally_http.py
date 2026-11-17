@@ -209,6 +209,7 @@ def pull_and_ingest(
     company: str | None = None,
     company_name: str | None = None,
     account_map: Path | None = None,
+    client_chart=None,
 ) -> IngestResult:
     """Pull DayBook from TallyPrime HTTP and ingest into the session.
 
@@ -238,6 +239,7 @@ def pull_and_ingest(
             tmp_path,
             account_map,
             company_name=company_name or company,
+            client_chart=client_chart,
             source="tally-http",
         )
     finally:

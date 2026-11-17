@@ -6,13 +6,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from ssdv.mis.kpis import MisSnapshot
-from ssdv.mis.policy import (
-    COGS_RATIO_MAX,
-    COLLECTION_EFFICIENCY_MIN,
-    CUSTOMER_SHARE_MAX,
-    DSO_DAYS_MAX,
-    INVENTORY_TO_SALES_MAX,
-)
+from ssdv.mis.policy import policy_of
 from ssdv.money import ZERO, money
 from ssdv.paths import default_db_path, load_company
 
@@ -23,7 +17,6 @@ BENCHMARK_SOURCE = (
     "Not a surveyed industry average."
 )
 _CURRENT_RATIO_MIN = money("1")
-_GM_PCT_MIN = money(1) - COGS_RATIO_MAX
 
 
 @dataclass(frozen=True)
@@ -122,14 +115,15 @@ def build_benchmarks(
     peer: MisSnapshot | None = None,
 ) -> tuple[BenchmarkRow, ...]:
     """Rate posted KPIs vs SSDV policy. Optional peer is ABC baseline, not industry."""
-    gm_status, gm_tone = _rate_high(snap.fy.gm_pct, _GM_PCT_MIN)
-    dso_status, dso_tone = _rate_low(snap.dso, DSO_DAYS_MAX)
-    coll_status, coll_tone = _rate_high(snap.collection_efficiency, COLLECTION_EFFICIENCY_MIN)
+    gm_floor = money(1) - policy_of(snap).cogs_ratio_max
+    gm_status, gm_tone = _rate_high(snap.fy.gm_pct, gm_floor)
+    dso_status, dso_tone = _rate_low(snap.dso, policy_of(snap).dso_days_max)
+    coll_status, coll_tone = _rate_high(snap.collection_efficiency, policy_of(snap).collection_efficiency_min)
     cr_status, cr_tone = _rate_high(snap.current_ratio, _CURRENT_RATIO_MIN)
     qr_status, qr_tone = _rate_high(snap.quick_ratio, _CURRENT_RATIO_MIN)
-    inv_status, inv_tone = _rate_low(snap.metrics.inventory_to_sales, INVENTORY_TO_SALES_MAX)
-    cust_status, cust_tone = _rate_low(snap.metrics.top_customer_share, CUSTOMER_SHARE_MAX)
-    cogs_status, cogs_tone = _rate_low(snap.metrics.cogs_ratio, COGS_RATIO_MAX)
+    inv_status, inv_tone = _rate_low(snap.metrics.inventory_to_sales, policy_of(snap).inventory_to_sales_max)
+    cust_status, cust_tone = _rate_low(snap.metrics.top_customer_share, policy_of(snap).customer_share_max)
+    cogs_status, cogs_tone = _rate_low(snap.metrics.cogs_ratio, policy_of(snap).cogs_ratio_max)
 
     peer_gm = peer.fy.gm_pct if peer is not None else None
     peer_dso = peer.dso if peer is not None else None
@@ -151,7 +145,7 @@ def build_benchmarks(
             id="gross_margin",
             name="Gross margin",
             actual=_pct(snap.fy.gm_pct),
-            policy=f"at least {_pct(_GM_PCT_MIN)}",
+            policy=f"at least {_pct(gm_floor)}",
             peer=_pct(peer_gm),
             status=gm_status,
             tone=gm_tone,
@@ -161,7 +155,7 @@ def build_benchmarks(
             id="cogs_ratio",
             name="COGS / sales",
             actual=f"{snap.metrics.cogs_ratio:.2f}",
-            policy=f"under {COGS_RATIO_MAX:.2f}",
+            policy=f"under {policy_of(snap).cogs_ratio_max:.2f}",
             peer=f"{peer_cogs:.2f}" if peer_cogs is not None else "n/a",
             status=cogs_status,
             tone=cogs_tone,
@@ -171,7 +165,7 @@ def build_benchmarks(
             id="dso",
             name="DSO",
             actual=_days(snap.dso),
-            policy=f"under {DSO_DAYS_MAX} days",
+            policy=f"under {policy_of(snap).dso_days_max} days",
             peer=_days(peer_dso),
             status=dso_status,
             tone=dso_tone,
@@ -181,7 +175,7 @@ def build_benchmarks(
             id="collection_efficiency",
             name="Collection efficiency",
             actual=_pct(snap.collection_efficiency),
-            policy=f"at least {_pct(COLLECTION_EFFICIENCY_MIN)}",
+            policy=f"at least {_pct(policy_of(snap).collection_efficiency_min)}",
             peer=_pct(peer_coll),
             status=coll_status,
             tone=coll_tone,
@@ -211,7 +205,7 @@ def build_benchmarks(
             id="inventory_to_sales",
             name="Inventory / sales",
             actual=f"{snap.metrics.inventory_to_sales:.2f}",
-            policy=f"under {INVENTORY_TO_SALES_MAX:.2f}",
+            policy=f"under {policy_of(snap).inventory_to_sales_max:.2f}",
             peer=f"{peer_inv:.2f}" if peer_inv is not None else "n/a",
             status=inv_status,
             tone=inv_tone,
@@ -221,7 +215,7 @@ def build_benchmarks(
             id="customer_share",
             name="Top customer share",
             actual=_pct(snap.metrics.top_customer_share),
-            policy=f"under {_pct(CUSTOMER_SHARE_MAX)}",
+            policy=f"under {_pct(policy_of(snap).customer_share_max)}",
             peer=_pct(peer_cust),
             status=cust_status,
             tone=cust_tone,

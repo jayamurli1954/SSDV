@@ -4,15 +4,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
 from ssdv.mis.kpis import MisSnapshot
-from ssdv.mis.policy import (
-    AR_TO_SALES_STRESS,
-    COGS_RATIO_MAX,
-    COLLECTION_EFFICIENCY_MIN,
-    CUSTOMER_SHARE_MAX,
-    DSO_DAYS_MAX,
-    INVENTORY_TO_SALES_MAX,
-    VENDOR_SHARE_MAX,
-)
+from ssdv.mis.policy import policy_of
 from ssdv.money import ZERO, money
 
 Tone = str  # success | warning | danger | neutral
@@ -76,13 +68,22 @@ def _growth(snap: MisSnapshot) -> str:
     return f"{sign}{_pct(snap.sales_growth, 1)}"
 
 
+def _bank_note(snap: MisSnapshot) -> str:
+    if snap.banks:
+        parts = "  ".join(f"{b.label} {_inr(b.balance)}" for b in snap.banks)
+    else:
+        parts = f"{_inr(snap.cash)}"
+    limit = f"OD limit {_inr(snap.od_limit)}" if snap.od_limit_known else "OD limit not set"
+    return f"Banks  {parts}  {limit}"
+
+
 def scorecard(snap: MisSnapshot) -> tuple[ScorecardRow, ...]:
     m = snap.metrics
     dso_status = "Hold"
     dso_tone: Tone = "success"
     if snap.dso is None:
         dso_status, dso_tone = "n/a", "neutral"
-    elif snap.dso > DSO_DAYS_MAX:
+    elif snap.dso > policy_of(snap).dso_days_max:
         dso_status, dso_tone = "Breach", "danger"
 
     equity_ok = snap.equity >= ZERO
@@ -90,23 +91,23 @@ def scorecard(snap: MisSnapshot) -> tuple[ScorecardRow, ...]:
         ScorecardRow(
             "customer_concentration",
             "Customer concentration",
-            "Top customer < 35%",
+            f"Top customer < {_pct(policy_of(snap).customer_share_max)}",
             _pct(m.top_customer_share),
-            "Breach" if m.top_customer_share >= CUSTOMER_SHARE_MAX else "Hold",
-            _tone_high(m.top_customer_share, CUSTOMER_SHARE_MAX),
+            "Breach" if m.top_customer_share >= policy_of(snap).customer_share_max else "Hold",
+            _tone_high(m.top_customer_share, policy_of(snap).customer_share_max),
         ),
         ScorecardRow(
             "vendor_dependency",
             "Vendor dependency",
-            "Top vendor < 55%",
+            f"Top vendor < {_pct(policy_of(snap).vendor_share_max)}",
             _pct(m.top_vendor_share),
-            "Breach" if m.top_vendor_share >= VENDOR_SHARE_MAX else "Hold",
-            _tone_high(m.top_vendor_share, VENDOR_SHARE_MAX),
+            "Breach" if m.top_vendor_share >= policy_of(snap).vendor_share_max else "Hold",
+            _tone_high(m.top_vendor_share, policy_of(snap).vendor_share_max),
         ),
         ScorecardRow(
             "collections",
             "Collections",
-            "DSO <= 120 days",
+            f"DSO <= {policy_of(snap).dso_days_max} days",
             _days(snap.dso),
             dso_status,
             dso_tone,
@@ -114,18 +115,18 @@ def scorecard(snap: MisSnapshot) -> tuple[ScorecardRow, ...]:
         ScorecardRow(
             "stock",
             "Stock",
-            "Inventory / sales < 0.45",
+            f"Inventory / sales < {policy_of(snap).inventory_to_sales_max:.2f}",
             f"{m.inventory_to_sales:.2f}",
-            "Breach" if m.inventory_to_sales >= INVENTORY_TO_SALES_MAX else "Hold",
-            _tone_high(m.inventory_to_sales, INVENTORY_TO_SALES_MAX),
+            "Breach" if m.inventory_to_sales >= policy_of(snap).inventory_to_sales_max else "Hold",
+            _tone_high(m.inventory_to_sales, policy_of(snap).inventory_to_sales_max),
         ),
         ScorecardRow(
             "gross_margin",
             "Gross margin",
-            "COGS / sales < 0.84",
+            f"COGS / sales < {policy_of(snap).cogs_ratio_max:.2f}",
             f"{m.cogs_ratio:.2f}",
-            "Breach" if m.cogs_ratio >= COGS_RATIO_MAX else "Hold",
-            _tone_high(m.cogs_ratio, COGS_RATIO_MAX),
+            "Breach" if m.cogs_ratio >= policy_of(snap).cogs_ratio_max else "Hold",
+            _tone_high(m.cogs_ratio, policy_of(snap).cogs_ratio_max),
         ),
         ScorecardRow(
             "solvency",
@@ -159,7 +160,7 @@ def ceo_pack(snap: MisSnapshot) -> MisPack:
     coll = snap.collection_efficiency
     coll_tone: Tone = "neutral"
     if snap.fy.sales > ZERO:
-        coll_tone = "danger" if coll < COLLECTION_EFFICIENCY_MIN else "success"
+        coll_tone = "danger" if coll < policy_of(snap).collection_efficiency_min else "success"
     wc_tone: Tone = "danger" if snap.working_capital < ZERO else "neutral"
     profit_tone: Tone = "danger" if snap.monthly_profit < ZERO else "neutral"
     last_month = snap.series.labels[-1] if snap.series.labels else "Last month"
@@ -202,7 +203,7 @@ def ceo_pack(snap: MisSnapshot) -> MisPack:
             "ccc",
             "Cash conversion cycle",
             _days(snap.ccc),
-            "danger" if (snap.dso is not None and snap.dso > DSO_DAYS_MAX) else "warning",
+            "danger" if (snap.dso is not None and snap.dso > policy_of(snap).dso_days_max) else "warning",
             "ccc",
         ),
         Tile(
@@ -257,8 +258,8 @@ def cfo_pack(snap: MisSnapshot) -> MisPack:
 
     dso_tone: Tone = "neutral"
     if snap.dso is not None:
-        dso_tone = "danger" if snap.dso > DSO_DAYS_MAX else "success"
-    ar_tone = _tone_high(snap.metrics.ar_to_sales, AR_TO_SALES_STRESS)
+        dso_tone = "danger" if snap.dso > policy_of(snap).dso_days_max else "success"
+    ar_tone = _tone_high(snap.metrics.ar_to_sales, policy_of(snap).ar_to_sales_stress)
     fc = cash_forecast(snap)
     h30, h60, h90 = fc.horizons
     gst_net_tone: Tone = "warning" if snap.gst_net > ZERO else "neutral"
@@ -296,8 +297,12 @@ def cfo_pack(snap: MisSnapshot) -> MisPack:
         Tile(
             "od",
             "OD utilisation",
-            _pct(snap.od_utilisation, 1),
-            "danger" if snap.od_utilisation >= money("0.95") else "warning",
+            _pct(snap.od_utilisation, 1) if snap.od_limit_known else "Limit not set",
+            (
+                ("danger" if snap.od_utilisation >= money("0.95") else "warning")
+                if snap.od_limit_known
+                else "neutral"
+            ),
             "113000",
         ),
         Tile("salary", "Salary payable", _inr(snap.salary_payable), "warning", "232000"),
@@ -331,10 +336,7 @@ def cfo_pack(snap: MisSnapshot) -> MisPack:
             f"61-90 {_inr(aging['61-90'])}  91-120 {_inr(aging['91-120'])}  "
             f"120+ {_inr(aging['120+'])}  90+ {_inr(aging['90+'])}"
         ),
-        (
-            f"Banks HDFC {_inr(snap.hdfc)}  ICICI {_inr(snap.icici)}  "
-            f"OD {_inr(snap.od)}  limit {_inr(snap.od_limit)}"
-        ),
+        _bank_note(snap),
         f"Opex (ex-COGS) {_inr(snap.fy.opex)}  loan {_inr(snap.term_loan)}",
         f"Equation delta {_inr(snap.equation.delta)}  {'holds' if snap.equation.holds else 'BROKEN'}",
         fc.method,
@@ -364,14 +366,14 @@ def board_pack(snap: MisSnapshot) -> MisPack:
             "vendor",
             "Top vendor share",
             _pct(snap.metrics.top_vendor_share),
-            _tone_high(snap.metrics.top_vendor_share, VENDOR_SHARE_MAX),
+            _tone_high(snap.metrics.top_vendor_share, policy_of(snap).vendor_share_max),
             snap.metrics.top_vendor or "vendors",
         ),
         Tile(
             "gm",
             "Gross margin",
             _pct(snap.fy.gm_pct, 1),
-            "danger" if snap.metrics.cogs_ratio >= COGS_RATIO_MAX else "success",
+            "danger" if snap.metrics.cogs_ratio >= policy_of(snap).cogs_ratio_max else "success",
             "cogs",
         ),
         Tile("ccc", "Cash conversion cycle", _days(snap.ccc), "warning", "ccc"),

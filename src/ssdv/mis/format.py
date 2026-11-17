@@ -39,7 +39,7 @@ def snapshot_payload(
     peer: MisSnapshot | None = None,
 ) -> dict[str, Any]:
     from ssdv.mis.benchmarks import BENCHMARK_SOURCE, build_benchmarks
-    from ssdv.mis.whatif import WHATIF_METHOD, WHATIF_PROMPTS, build_whatif
+    from ssdv.mis.whatif import WHATIF_METHOD, build_whatif, whatif_prompts
     from ssdv.officemitra.insights import WHY_PROMPTS, build_insights, build_red_flags
 
     packs = ["ceo", "cfo", "board"] if pack_id == "all" else [pack_id]
@@ -72,6 +72,8 @@ def snapshot_payload(
             "od": _json_ready(snap.od),
             "od_limit": _json_ready(snap.od_limit),
             "od_utilisation": _json_ready(snap.od_utilisation),
+            "od_limit_known": snap.od_limit_known,
+            "cash_in_hand": _json_ready(snap.cash_in_hand),
             "gst_payable": _json_ready(snap.gst_payable),
             "salary_payable": _json_ready(snap.salary_payable),
             "term_loan": _json_ready(snap.term_loan),
@@ -114,6 +116,18 @@ def snapshot_payload(
         "series": _json_ready(snap.series),
         "charts": _charts_payload(snap),
         "cash_forecast": _forecast_payload(snap),
+        "thresholds": _thresholds_payload(snap),
+        "banks": [
+            {
+                "label": b.label,
+                "client_code": b.client_code,
+                "standard_code": b.standard_code,
+                "balance": _json_ready(b.balance),
+                "overdraft": b.is_overdraft,
+            }
+            for b in snap.banks
+        ],
+        "runway": _runway_payload(snap),
         "parties": _parties_payload(snap),
         "insights": [
             {
@@ -134,7 +148,7 @@ def snapshot_payload(
             for item in build_red_flags(snap)
         ],
         "why_prompts": list(WHY_PROMPTS),
-        "whatif_prompts": list(WHATIF_PROMPTS),
+        "whatif_prompts": list(whatif_prompts(snap)),
         "whatif_method": WHATIF_METHOD,
         "whatif": [
             {
@@ -210,6 +224,39 @@ def _parties_payload(snap: MisSnapshot) -> dict[str, Any]:
         "customer_rank": snap.customer_rank,
         "overdue_customers": [_party_row(row) for row in snap.overdue_customers],
         "vendor_exposure": [_party_row(row) for row in snap.vendor_exposure],
+    }
+
+
+def _thresholds_payload(snap: MisSnapshot) -> dict[str, Any]:
+    from ssdv.mis.policy import THRESHOLD_FIELDS, changed_from_default, display_value, policy_of
+
+    policy = policy_of(snap)
+    changed = changed_from_default(policy)
+    return {
+        "custom": bool(changed),
+        "fields": [
+            {
+                "name": name,
+                "label": label,
+                "unit": unit,
+                "value": display_value(policy, name),
+                "custom": name in changed,
+            }
+            for name, label, unit, _low, _high in THRESHOLD_FIELDS
+        ],
+    }
+
+
+def _runway_payload(snap: MisSnapshot) -> dict[str, Any]:
+    from ssdv.mis.runway import RUNWAY_METHOD, base_as_dict
+    from ssdv.officemitra.risk import assess_risk
+
+    risk = assess_risk(snap)
+    return {
+        **base_as_dict(risk.base),
+        "risk": risk.band,
+        "reasons": list(risk.reasons),
+        "method": RUNWAY_METHOD,
     }
 
 

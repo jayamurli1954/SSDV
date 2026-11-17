@@ -4,15 +4,20 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from ssdv.mis.kpis import MisSnapshot
-from ssdv.mis.policy import COLLECTION_EFFICIENCY_MIN, DSO_DAYS_MAX
+from ssdv.mis.policy import policy_of
 from ssdv.money import ZERO, money
 
-WHATIF_PROMPTS = (
-    "If DSO improves to 120 days, how much cash is released?",
-    "If YTD sales rise 15%, what is projected profit?",
-    "If AR 90+ is collected, how much cash is released?",
-    "If collection efficiency reaches 80%, how much extra cash?",
-)
+
+def whatif_prompts(snap=None) -> tuple[str, ...]:
+    return (
+        f"If DSO improves to {policy_of(snap).dso_days_max} days, how much cash is released?",
+        "If YTD sales rise 15%, what is projected profit?",
+        "If AR 90+ is collected, how much cash is released?",
+        f"If collection efficiency reaches {policy_of(snap).collection_efficiency_min * 100:.0f}%, how much extra cash?",
+    )
+
+
+WHATIF_PROMPTS = whatif_prompts()
 
 WHATIF_METHOD = (
     "Recommend-only. Each scenario scales posted YTD figures or open AR buckets. "
@@ -56,7 +61,7 @@ def _row(
 
 
 def _dso_to_policy(snap: MisSnapshot) -> WhatIfRow:
-    prompt = WHATIF_PROMPTS[0]
+    prompt = whatif_prompts(snap)[0]
     if snap.dso is None or snap.fy.sales <= ZERO:
         return _row(
             id="dso_to_120",
@@ -64,11 +69,11 @@ def _dso_to_policy(snap: MisSnapshot) -> WhatIfRow:
             result="DSO or YTD sales missing; this lever needs both.",
             tone="neutral",
         )
-    if snap.dso <= DSO_DAYS_MAX:
+    if snap.dso <= policy_of(snap).dso_days_max:
         return _row(
             id="dso_to_120",
             prompt=prompt,
-            result=f"DSO is {snap.dso} days (policy {DSO_DAYS_MAX}). No extra cash from this lever.",
+            result=f"DSO is {snap.dso} days (policy {policy_of(snap).dso_days_max}). No extra cash from this lever.",
             delta_inr=ZERO,
             tone="success",
         )
@@ -77,17 +82,17 @@ def _dso_to_policy(snap: MisSnapshot) -> WhatIfRow:
         id="dso_to_120",
         prompt=prompt,
         result=(
-            f"DSO {snap.dso} days vs {DSO_DAYS_MAX}-day policy implies about {_inr(gap)} "
+            f"DSO {snap.dso} days vs {policy_of(snap).dso_days_max}-day policy implies about {_inr(gap)} "
             f"of AR ({_inr(snap.ar)} outstanding) is above policy timing."
         ),
         delta_inr=gap,
         tone="warning" if gap > ZERO else "neutral",
-        detail="Uses AR * (DSO - 120) / DSO from posted YTD sales and receivables.",
+        detail=f"Uses AR * (DSO - {policy_of(snap).dso_days_max}) / DSO from posted YTD sales and receivables.",
     )
 
 
 def _sales_up_15(snap: MisSnapshot) -> WhatIfRow:
-    prompt = WHATIF_PROMPTS[1]
+    prompt = whatif_prompts(snap)[1]
     sales = snap.fy.sales
     if sales <= ZERO:
         return _row(
@@ -116,7 +121,7 @@ def _sales_up_15(snap: MisSnapshot) -> WhatIfRow:
 
 
 def _collect_ar90(snap: MisSnapshot) -> WhatIfRow:
-    prompt = WHATIF_PROMPTS[2]
+    prompt = whatif_prompts(snap)[2]
     blocked = snap.cash_blocked_90
     if blocked <= ZERO:
         return _row(
@@ -137,7 +142,7 @@ def _collect_ar90(snap: MisSnapshot) -> WhatIfRow:
 
 
 def _collections_to_80(snap: MisSnapshot) -> WhatIfRow:
-    prompt = WHATIF_PROMPTS[3]
+    prompt = whatif_prompts(snap)[3]
     sales = snap.fy.sales
     if sales <= ZERO:
         return _row(
@@ -146,7 +151,7 @@ def _collections_to_80(snap: MisSnapshot) -> WhatIfRow:
             result="No YTD taxable sales to compare receipts against.",
             tone="neutral",
         )
-    target = money(sales * COLLECTION_EFFICIENCY_MIN)
+    target = money(sales * policy_of(snap).collection_efficiency_min)
     extra = money(target - snap.fy.receipts)
     if extra <= ZERO:
         return _row(
@@ -154,7 +159,7 @@ def _collections_to_80(snap: MisSnapshot) -> WhatIfRow:
             prompt=prompt,
             result=(
                 f"YTD receipts {_inr(snap.fy.receipts)} are already at or above "
-                f"80% of sales ({_inr(sales)})."
+                f"{policy_of(snap).collection_efficiency_min * 100:.0f}% of sales ({_inr(sales)})."
             ),
             delta_inr=ZERO,
             tone="success",
@@ -163,7 +168,7 @@ def _collections_to_80(snap: MisSnapshot) -> WhatIfRow:
         id="collections_to_80",
         prompt=prompt,
         result=(
-            f"80% of YTD sales is {_inr(target)}. Posted receipts are {_inr(snap.fy.receipts)}; "
+            f"{policy_of(snap).collection_efficiency_min * 100:.0f}% of YTD sales is {_inr(target)}. Posted receipts are {_inr(snap.fy.receipts)}; "
             f"gap {_inr(extra)}."
         ),
         delta_inr=extra,

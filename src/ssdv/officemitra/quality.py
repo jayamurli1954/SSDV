@@ -92,6 +92,10 @@ class QualityReport:
     ppt_block_reason: str | None
     failed_gates: tuple[str, ...]
     breakdown: dict[str, Any]
+    approval_required: bool = False
+    approved: bool = False
+    approved_by: str | None = None
+    approved_at: str | None = None
 
 
 def budget_sidecar_path(db_path: Path) -> Path:
@@ -173,12 +177,14 @@ def read_review(db_path: Path, as_of: date, *, voucher_count: int) -> dict[str, 
     return data
 
 
-def mark_reviewed(db_path: Path, as_of: date, *, session: Session) -> dict[str, Any]:
+def mark_reviewed(
+    db_path: Path, as_of: date, *, session: Session, reviewed_by: str | None = None
+) -> dict[str, Any]:
     payload = {
         "as_of": as_of.isoformat(),
         "voucher_count": _voucher_count(session),
         "reviewed_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
-        "reviewed_by": "local",
+        "reviewed_by": (reviewed_by or "").strip() or "local",
     }
     path = review_sidecar_path(db_path)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -202,10 +208,13 @@ def assess_session(
     )
     score, breakdown = score_from_gates(gates, imported=imported, has_budget=has_budget)
     license_obj = load_license()
+    # GSTR-2B return periods are YYYY-MM — never pass FY codes like FY2025-26.
+    from ssdv.forensics.gstr2b_recon import period_key
+
     signal = gstr2b_signal(
         session,
         plan_id=license_obj.plan_id if license_obj else None,
-        return_period=fy_code,
+        return_period=period_key(as_of),
     )
     if signal.checked:
         score = max(0, score - signal.deduction)
@@ -222,6 +231,13 @@ def assess_session(
         reason = f"data_quality_score {score} is below {PPT_MIN_SCORE}"
     elif not reviewed:
         reason = "Books are not marked reviewed for this as-of date"
+    from ssdv.officemitra.approval import NOT_APPROVED_REASON, approval_status
+
+    approval = approval_status(
+        db_path, as_of, voucher_count=_voucher_count(session), reviewed=reviewed
+    )
+    if reason is None and approval.required and not approval.approved:
+        reason = NOT_APPROVED_REASON
     ppt_allowed = reason is None
     failed = tuple(g.name for g in gates if not g.ok)
     return QualityReport(
@@ -236,6 +252,10 @@ def assess_session(
         ppt_block_reason=reason,
         failed_gates=failed,
         breakdown=breakdown,
+        approval_required=approval.required,
+        approved=approval.approved,
+        approved_by=approval.approved_by,
+        approved_at=approval.approved_at,
     )
 
 
@@ -288,11 +308,25 @@ def enrich_payload(
     payload["data_quality_band"] = report.band
     payload["data_quality_breakdown"] = report.breakdown
     payload["reviewed"] = report.reviewed
+    review = read_review(db_path, as_of, voucher_count=_voucher_count(session)) or {}
+    payload["reviewed_by"] = review.get("reviewed_by")
+    payload["approval"] = {
+        "required": report.approval_required,
+        "approved": report.approved,
+        "approved_by": report.approved_by,
+        "approved_at": report.approved_at,
+    }
     payload["ppt_allowed"] = report.ppt_allowed
     payload["ppt_block_reason"] = report.ppt_block_reason
     payload["budget_vs_actual"] = budget_vs_actual(
         sales, budget_amount, report.budget_source
     )
+    from ssdv.officemitra.budget import budget_report, report_as_dict
+
+    payload["budget_variance"] = report_as_dict(budget_report(session, db_path, as_of))
+    from ssdv.officemitra.client_view import client_chart_payload
+
+    payload["client_chart"] = client_chart_payload(session, as_of)
     return payload
 
 

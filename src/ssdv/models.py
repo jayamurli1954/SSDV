@@ -102,9 +102,29 @@ class JournalLine(Base):
     branch_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
     cost_centre: Mapped[str | None] = mapped_column(String(16), nullable=True)
     line_narration: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    client_ledger_id: Mapped[int | None] = mapped_column(
+        ForeignKey("client_ledgers.id"), nullable=True, index=True
+    )
 
     voucher: Mapped[Voucher] = relationship(back_populates="lines")
     account: Mapped[Account] = relationship()
+
+
+class ClientLedger(Base):
+    """A ledger from the client's own chart of accounts, as it appears in their books.
+
+    ``account_code`` is the standard ledger it is classified under for KPIs. Reports
+    in the client's chart use ``code`` / ``name`` / ``group_name`` exactly as imported.
+    """
+
+    __tablename__ = "client_ledgers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source_key: Mapped[str] = mapped_column(String(160), nullable=False, unique=True)
+    code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    group_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    account_code: Mapped[str] = mapped_column(ForeignKey("accounts.code"), nullable=False)
 
 
 class Customer(Base):

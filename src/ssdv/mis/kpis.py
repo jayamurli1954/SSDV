@@ -20,6 +20,7 @@ from ssdv.gl import (
     BANK_HDFC,
     BANK_ICICI,
     BANK_OD,
+    CASH,
     COGS,
     GST_PAYABLE,
     INVENTORY,
@@ -27,7 +28,8 @@ from ssdv.gl import (
     SALES,
     TERM_LOAN,
 )
-from ssdv.mis.policy import DSO_DAYS_MAX
+from ssdv.mis.bank_position import bank_positions, client_od_limit, vault_path
+from ssdv.mis.policy import DEFAULT_POLICY, ClientPolicy, load_policy, policy_of
 from ssdv.mis.series import MonthlySeries, monthly_activity
 from ssdv.models import (
     Account,
@@ -230,6 +232,10 @@ class MisSnapshot:
     gst_input: Decimal
     gst_output: Decimal
     msme_43bh_total: Decimal
+    banks: tuple = ()
+    od_limit_known: bool = True
+    cash_in_hand: Decimal = ZERO
+    policy: ClientPolicy = DEFAULT_POLICY
 
     @property
     def gm_pct(self) -> Decimal:
@@ -278,10 +284,10 @@ class MisSnapshot:
 
     @property
     def dso_policy_gap_ar(self) -> Decimal | None:
-        """AR implied by DSO days above the 120-day policy. None if DSO is missing or within policy."""
-        if self.dso is None or self.dso <= DSO_DAYS_MAX or self.dso <= 0:
+        """AR implied by DSO days above the client's DSO policy. None if DSO is missing or within policy."""
+        if self.dso is None or self.dso <= policy_of(self).dso_days_max or self.dso <= 0:
             return None
-        extra = Decimal(self.dso - DSO_DAYS_MAX) / Decimal(self.dso)
+        extra = Decimal(self.dso - policy_of(self).dso_days_max) / Decimal(self.dso)
         return money(self.ar * extra)
 
     @property
@@ -362,7 +368,14 @@ def mis_snapshot(
     icici = banks[BANK_ICICI]
     od = banks[BANK_OD]
     cash = money(hdfc + icici + od)
-    od_limit = money(cfg["accounting"]["od_limit_inr"])
+    imported = ingest is not None
+    cash_in_hand = ledger_balance(session, CASH, as_of) if imported else ZERO
+    # Imported clients keep cash in hand in their own ledgers; it is cash.
+    cash = money(cash + cash_in_hand)
+    if imported:
+        od_limit = client_od_limit(session)
+    else:
+        od_limit = money(cfg["accounting"]["od_limit_inr"])
     od_util = ZERO if od_limit <= ZERO else _ratio(money(-od) if od < ZERO else ZERO, od_limit)
 
     ar = ledger_balance(session, AR_CONTROL, as_of)
@@ -425,4 +438,8 @@ def mis_snapshot(
         gst_input=gst_input,
         gst_output=gst_output,
         msme_43bh_total=msme_total,
+        banks=bank_positions(session, as_of, imported=imported),
+        od_limit_known=od_limit > ZERO,
+        cash_in_hand=cash_in_hand,
+        policy=load_policy(vault_path(session)),
     )

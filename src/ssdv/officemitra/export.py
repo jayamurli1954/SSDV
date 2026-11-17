@@ -108,11 +108,90 @@ def write_excel(payload: dict[str, Any], out: Path) -> None:
     for key in ("sales_actual", "sales_budget", "variance_abs", "variance_pct", "source"):
         ws5.append([key, _stringify(bva.get(key))])
 
+    variance = payload.get("budget_variance") if isinstance(payload.get("budget_variance"), dict) else None
+    if variance:
+        ws_var = wb.create_sheet(_sheet_title("Budget variance"))
+        ws_var.append(["FY", _stringify(variance.get("fy_code"))])
+        ws_var.append(["Basis", _stringify(variance.get("basis"))])
+        ws_var.append(["Share of year elapsed", _stringify(variance.get("elapsed_pct"))])
+        ws_var.append(["Profit impact vs budget", _stringify(variance.get("profit_impact"))])
+        ws_var.append([])
+        ws_var.append(
+            ["Code", "Ledger", "Type", "Actual", "Budget", "Variance", "Variance %", "Profit impact", "Favourable"]
+        )
+        for row in variance.get("rows") or []:
+            ws_var.append(
+                [
+                    _stringify(row.get("code")),
+                    _stringify(row.get("name")),
+                    _stringify(row.get("type")),
+                    _stringify(row.get("actual")),
+                    _stringify(row.get("budget")),
+                    _stringify(row.get("variance")),
+                    _stringify(row.get("variance_pct")),
+                    _stringify(row.get("profit_impact")),
+                    "yes" if row.get("favourable") else "no",
+                ]
+            )
+
+    client = payload.get("client_chart") if isinstance(payload.get("client_chart"), dict) else None
+    if client:
+        ws_tb = wb.create_sheet(_sheet_title("TB (client chart)"))
+        ws_tb.append(["Trial balance in the client's own chart of accounts", "", "As of", client.get("as_of")])
+        ws_tb.append(
+            [
+                "Client code",
+                "Client ledger",
+                "Client group",
+                "Debit",
+                "Credit",
+                "Balance (Dr +)",
+                "Standard code",
+                "Standard ledger",
+            ]
+        )
+        for row in client.get("trial_balance") or []:
+            ws_tb.append(
+                [
+                    _stringify(row.get("client_code")),
+                    _stringify(row.get("client_name")),
+                    _stringify(row.get("client_group")),
+                    _stringify(row.get("debit")),
+                    _stringify(row.get("credit")),
+                    _stringify(row.get("balance")),
+                    _stringify(row.get("standard_code")),
+                    _stringify(row.get("standard_name")),
+                ]
+            )
+        ws_tb.append(
+            ["", "Total", "", _stringify(client.get("tb_total_debit")), _stringify(client.get("tb_total_credit"))]
+        )
+
+        ws_pl = wb.create_sheet(_sheet_title("P&L (client chart)"))
+        ws_pl.append(["Profit & loss, financial year to date, in the client's own groups"])
+        ws_pl.append(["Type", "Client group", "Client code", "Client ledger", "Amount", "Standard code"])
+        for block in client.get("pnl") or []:
+            for item in block.get("ledgers") or []:
+                ws_pl.append(
+                    [
+                        _stringify(block.get("type")),
+                        _stringify(block.get("group")),
+                        _stringify(item.get("client_code")),
+                        _stringify(item.get("client_name")),
+                        _stringify(item.get("amount")),
+                        _stringify(item.get("standard_code")),
+                    ]
+                )
+            ws_pl.append(["", f"Total {block.get('group')}", "", "", _stringify(block.get("total"))])
+
     ws6 = wb.create_sheet(_sheet_title("Data quality"))
     ws6.append(["Field", "Value"])
     ws6.append(["score", _stringify(payload.get("data_quality_score"))])
     ws6.append(["band", _stringify(payload.get("data_quality_band"))])
     ws6.append(["reviewed", "yes" if payload.get("reviewed") else "no"])
+    for line in _signoff_lines(payload):
+        label, _, value = line.partition(": ")
+        ws6.append([label, value])
     ws6.append(["ppt_allowed", "yes" if payload.get("ppt_allowed") else "no"])
     ws6.append(["ppt_block_reason", _stringify(payload.get("ppt_block_reason"))])
     breakdown = payload.get("data_quality_breakdown") if isinstance(payload.get("data_quality_breakdown"), dict) else {}
@@ -121,6 +200,18 @@ def write_excel(payload: dict[str, Any], out: Path) -> None:
 
     out.parent.mkdir(parents=True, exist_ok=True)
     wb.save(out)
+
+
+def _signoff_lines(payload: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    prepared = str(payload.get("reviewed_by") or "")
+    if prepared and prepared != "local":
+        lines.append(f"Prepared by: {prepared}")
+    approval = payload.get("approval") if isinstance(payload.get("approval"), dict) else {}
+    if approval.get("approved"):
+        day = str(approval.get("approved_at") or "")[:10]
+        lines.append(f"Approved by: {_stringify(approval.get('approved_by'))} on {day}")
+    return lines
 
 
 def write_ppt(payload: dict[str, Any], out: Path) -> None:
@@ -161,6 +252,7 @@ def write_ppt(payload: dict[str, Any], out: Path) -> None:
             f"Gross Margin: {_stringify(kpis.get('gross_margin'))} ({_stringify(kpis.get('gm_pct'))})",
             f"Quality: {_stringify(payload.get('data_quality_score'))} ({_stringify(payload.get('data_quality_band'))})",
             f"Reviewed: {'yes' if payload.get('reviewed') else 'no'}",
+            *_signoff_lines(payload),
         ],
     )
 

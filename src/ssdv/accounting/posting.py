@@ -25,6 +25,7 @@ class LineDraft(BaseModel):
     branch_code: str | None = None
     cost_centre: str | None = None
     line_narration: str | None = None
+    client_ledger_id: int | None = None
 
     @model_validator(mode="after")
     def quantize_amounts(self) -> LineDraft:
@@ -107,6 +108,7 @@ def post(session: Session, request: PostingRequest) -> Voucher:
                 branch_code=line.branch_code,
                 cost_centre=line.cost_centre,
                 line_narration=line.line_narration,
+                client_ledger_id=line.client_ledger_id,
             )
         )
     session.add_all(journal_lines)

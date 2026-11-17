@@ -99,9 +99,50 @@ def test_gstr2b_reconciliation(session, tmp_path) -> None:
     assert "missing_in_books" in flags
 
     # Bills not in 2B should be flagged (all other purchase bills from bootstrap)
+    # With period filtering, only same-month bills are compared.
     missing_in_2b = [r for r in result.rows if r.flag == "missing_in_2b"]
-    # At least the opening/generated bills should show up
     assert len(missing_in_2b) >= 0  # depends on bootstrap data
 
     # ITC gap should be non-zero (extra portal line)
     assert result.itc_gap != ZERO or result.total_portal_itc != result.total_books_itc
+
+
+def test_seed_gstr2b_from_books_plants_controlled_gaps(session) -> None:
+    from ssdv.forensics.gstr2b_recon import seed_gstr2b_from_books
+
+    cfg = _cfg()
+    bootstrap_books(session, company=cfg)
+
+    vendor = session.scalars(select(Vendor).order_by(Vendor.code)).first()
+    warehouse = session.scalars(select(Warehouse).limit(1)).first()
+    product = session.scalars(select(Product).limit(1)).first()
+    assert vendor is not None and warehouse is not None and product is not None
+
+    for day in (5, 12, 18, 22, 28):
+        post_purchase(
+            session,
+            bill_date=date(2024, 2, day),
+            vendor=vendor,
+            warehouse=warehouse,
+            lines=[PurchaseLineInput(product=product, qty=Decimal(2), rate=money(product.cost_price))],
+            company=cfg,
+        )
+
+    result = seed_gstr2b_from_books(
+        session,
+        return_period="2024-02",
+        omit_count=1,
+        amount_mismatch_count=1,
+        portal_only_count=1,
+    )
+    assert result.bills_in_period >= 5
+    assert result.omitted_from_2b == 1
+    assert result.amount_mismatches == 1
+    assert result.portal_only == 1
+
+    summary = reconcile_2b(session, "2024-02")
+    flags = {r.flag for r in summary.rows}
+    assert "missing_in_2b" in flags
+    assert "missing_in_books" in flags
+    assert "amount_mismatch" in flags
+    assert summary.itc_gap != ZERO

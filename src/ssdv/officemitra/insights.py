@@ -5,12 +5,7 @@ from dataclasses import dataclass
 from ssdv.mis.benchmarks import build_benchmarks
 from ssdv.mis.forecast import cash_forecast
 from ssdv.mis.kpis import MisSnapshot
-from ssdv.mis.policy import (
-    COGS_RATIO_MAX,
-    COLLECTION_EFFICIENCY_MIN,
-    CUSTOMER_SHARE_MAX,
-    DSO_DAYS_MAX,
-)
+from ssdv.mis.policy import policy_of
 from ssdv.money import ZERO, money
 
 WHY_PROMPTS = (
@@ -122,7 +117,7 @@ def build_why(snap: MisSnapshot) -> tuple[Insight, ...]:
         extra = ""
         gap = snap.dso_policy_gap_ar
         if gap is not None:
-            extra = f" DSO {snap.dso} days vs 120-day policy implies about {_inr(gap)} extra AR vs policy."
+            extra = f" DSO {snap.dso} days vs {policy_of(snap).dso_days_max}-day policy implies about {_inr(gap)} extra AR vs policy."
         out.append(
             Insight(
                 "why_ar90",
@@ -137,12 +132,12 @@ def build_why(snap: MisSnapshot) -> tuple[Insight, ...]:
 def build_red_flags(snap: MisSnapshot) -> tuple[Insight, ...]:
     """Board exceptions only: DSO policy, negative cash, negative equity, falling profit."""
     flags: list[Insight] = []
-    if snap.dso is not None and snap.dso > DSO_DAYS_MAX:
+    if snap.dso is not None and snap.dso > policy_of(snap).dso_days_max:
         flags.append(
             Insight(
                 "flag_dso",
                 "board",
-                f"DSO {snap.dso} days exceeds 120-day policy.",
+                f"DSO {snap.dso} days exceeds {policy_of(snap).dso_days_max}-day policy.",
                 "danger",
             )
         )
@@ -212,7 +207,7 @@ def build_insights(snap: MisSnapshot, *, limit: int = 22) -> tuple[Insight, ...]
         )
 
     gm_tone = "success"
-    if snap.metrics.cogs_ratio >= COGS_RATIO_MAX or snap.fy.gm_pct < money("0.10"):
+    if snap.metrics.cogs_ratio >= policy_of(snap).cogs_ratio_max or snap.fy.gm_pct < money("0.10"):
         gm_tone = "danger"
     elif snap.fy.gm_pct < money("0.18"):
         gm_tone = "warning"
@@ -237,7 +232,7 @@ def build_insights(snap: MisSnapshot, *, limit: int = 22) -> tuple[Insight, ...]
         )
 
     coll = snap.collection_efficiency
-    coll_tone = "danger" if coll < COLLECTION_EFFICIENCY_MIN else "success"
+    coll_tone = "danger" if coll < policy_of(snap).collection_efficiency_min else "success"
     out.append(
         Insight(
             "collections",
@@ -307,23 +302,23 @@ def build_insights(snap: MisSnapshot, *, limit: int = 22) -> tuple[Insight, ...]
         )
     )
 
-    if snap.metrics.top_customer_share >= CUSTOMER_SHARE_MAX:
+    if snap.metrics.top_customer_share >= policy_of(snap).customer_share_max:
         name = snap.metrics.top_customer or "Top customer"
         out.append(
             Insight(
                 "concentration",
                 "ceo",
-                f"{name} is {_pct(snap.metrics.top_customer_share)} of sales (policy under 35%).",
+                f"{name} is {_pct(snap.metrics.top_customer_share)} of sales (policy under {_pct(policy_of(snap).customer_share_max, 0)}).",
                 "danger",
             )
         )
 
-    if snap.dso is not None and snap.dso > DSO_DAYS_MAX:
+    if snap.dso is not None and snap.dso > policy_of(snap).dso_days_max:
         out.append(
             Insight(
                 "dso",
                 "aging",
-                f"DSO is {snap.dso} days against a 120-day policy.",
+                f"DSO is {snap.dso} days against a {policy_of(snap).dso_days_max}-day policy.",
                 "danger",
             )
         )

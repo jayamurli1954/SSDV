@@ -2,3 +2,11 @@
 # Save next to the SQLite file as <vault-stem>.budget.yaml
 # Example: data/ssdv_sample-traders-pvt-ltd.budget.yaml
 sales: 180000
+
+# Optional account-level budgets for the CFO pack's variance drivers.
+# Key = ledger code or ledger name from the chart of accounts. Amounts are for the
+# full financial year and are pro-rated to the as-of date. To give amounts that are
+# already "to date", add:  budget_basis: to_date
+accounts:
+  "410000": 2190000   # Sales
+  Rent: 182500
