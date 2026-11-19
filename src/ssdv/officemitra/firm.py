@@ -98,10 +98,15 @@ def apply_company_limit(
     *,
     limit: int | None = None,
 ) -> tuple[list[Path], int]:
+    from ssdv.officemitra.demo import is_demo_vault
+
     cap = effective_company_limit() if limit is None else limit
-    if cap is None or len(paths) <= cap:
-        return list(paths), 0
-    return paths[:cap], len(paths) - cap
+    # Shipped demo books are synthetic and never count against the client limit.
+    clients = [path for path in paths if not is_demo_vault(path)]
+    demos = [path for path in paths if path not in clients]
+    if cap is None or len(clients) <= cap:
+        return clients + demos, 0
+    return clients[:cap] + demos, len(clients) - cap
 
 
 def assert_can_add_vault(
@@ -113,7 +118,9 @@ def assert_can_add_vault(
     cap = effective_company_limit() if limit is None else limit
     if cap is None:
         return
-    existing = discover_vaults(data_dir or dest.parent)
+    from ssdv.officemitra.demo import is_demo_vault
+
+    existing = [path for path in discover_vaults(data_dir or dest.parent) if not is_demo_vault(path)]
     dest_resolved = dest.resolve()
     if any(path.resolve() == dest_resolved for path in existing):
         return

@@ -86,6 +86,10 @@ OfficeMitra turns your **exported accounting journals** into clear **CEO, CFO, a
 
 You do **not** need Python. Full steps: [CLIENT_INSTALL.md](CLIENT_INSTALL.md).
 
+### Try it on demo books
+
+On first start, click **Load demo books** to open three sample client books for ABC Industrial Supplies (healthy growth, a cash-flow crisis, customer concentration). Set **As of** to 31 Mar 2026. The figures are made up, and demo books never use up your licence's client limit. The same button is in the sidebar until the demo books are loaded.
+
 ### Licence and free trial
 
 Without a licence, OfficeMitra runs as a **free trial**: 1 client book with Professional features. When you buy a plan, SanMitra sends a signed file ending in `.officemitra.license`. Save it as:

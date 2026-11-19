@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tempfile
+from datetime import date
 from pathlib import Path
 
 import streamlit as st
@@ -208,6 +209,44 @@ def _execute_pending_import() -> None:
     st.rerun()
 
 
+DEMO_AS_OF = date(2026, 3, 31)
+
+
+def load_demo_and_open() -> None:
+    """Unpack the shipped demo books and open the client roster on them."""
+    from ssdv.officemitra.demo import load_demo_books
+
+    with st.spinner("Unpacking demo books…"):
+        paths = load_demo_books()
+    if not paths:
+        st.error("Demo books are not included in this copy of OfficeMitra.")
+        return
+    st.session_state["setup_complete"] = True
+    st.session_state["pending_vault"] = str(paths[0])
+    st.session_state["pending_as_of"] = DEMO_AS_OF
+    st.session_state["pending_screen"] = "Firm" if len(paths) > 1 else "CEO"
+    st.session_state.pop("show_setup", None)
+    st.session_state.pop("setup_pending", None)
+    st.cache_data.clear()
+    st.rerun()
+
+
+def _render_demo_offer() -> None:
+    from ssdv.officemitra.demo import demo_available
+
+    if not demo_available():
+        return
+    with st.container(border=True):
+        st.markdown("**No export handy? Try OfficeMitra on demo books first.**")
+        st.caption(
+            "Three sample client books for ABC Industrial Supplies: healthy growth, a cash-flow "
+            "crisis and customer concentration (FY 2023-24 to 2025-26). They are made-up figures "
+            "and do not use up your licence's client limit."
+        )
+        if st.button("Load demo books", type="primary", key="load_demo_books"):
+            load_demo_and_open()
+
+
 def render_setup_wizard() -> None:
     """Render the setup flow. Main app should return immediately after calling this."""
 
@@ -216,6 +255,9 @@ def render_setup_wizard() -> None:
         "Choose where your books come from. OfficeMitra reads data only — "
         "it never writes back to Tally, Zoho, Busy, or any other application."
     )
+
+    if not st.session_state.get("setup_mapping") and not st.session_state.get("setup_pending"):
+        _render_demo_offer()
 
     if st.session_state.get("setup_mapping"):
         _render_mapping_step()

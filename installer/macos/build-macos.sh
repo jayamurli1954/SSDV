@@ -36,6 +36,9 @@ if [[ -f "$ICON_PNG" ]] && command -v sips >/dev/null && command -v iconutil >/d
   iconutil -c icns "$ICONSET" -o "$ICNS"
 fi
 
+echo "Generating demo client books (2-3 minutes)..."
+"$PYTHON" "$ROOT/scripts/build_demo_books.py"
+
 "$PYTHON" -m PyInstaller --noconfirm --clean "$ROOT/installer/OfficeMitra.spec"
 
 APP="$ROOT/dist/OfficeMitra.app"

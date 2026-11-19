@@ -21,6 +21,7 @@ Copy the file there and restart OfficeMitra. The sidebar shows the plan, AMC dat
 | How OfficeMitra runs | No valid licence means |
 | --- | --- |
 | Installed app (Windows/Mac installer) | **Free trial**: 1 client book, Professional features (`trial` plan) |
+| Any mode | Demo books (`demo_*.sqlite` loaded with **Load demo books**) never count against the client limit |
 | From source (developers, tests) | Developer mode: everything, no limit. Set `OFFICEMITRA_FORCE_TRIAL=1` to see trial behaviour |
 
 ---

@@ -1439,6 +1439,16 @@ def main() -> None:
             st.session_state["show_setup"] = True
             st.session_state.pop("setup_complete", None)
             st.rerun()
+        from ssdv.officemitra.demo import demo_available, demo_loaded
+
+        if (
+            demo_available()
+            and not demo_loaded()
+            and st.button("Load demo books", help="Three sample ABC Industrial client books")
+        ):
+            from ssdv.officemitra.setup_wizard import load_demo_and_open
+
+            load_demo_and_open()
         ent = _ent()
         st.caption(ent.status_line())
         if ent.problem:

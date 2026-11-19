@@ -17,3 +17,5 @@ docs/demo_script_ankit_officemitra.pdf
 *.log
 .DS_Store
 Thumbs.db
+# demo books generated at installer build time (scripts/build_demo_books.py)
+assets/demo/

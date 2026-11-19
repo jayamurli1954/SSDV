@@ -23,6 +23,10 @@ Write-Host "Installing package + UI + PyInstaller..." -ForegroundColor Green
 & $python -m pip install -U pip
 & $python -m pip install -e ".[ui]" pyinstaller
 
+Write-Host "Generating demo client books (2-3 minutes)..." -ForegroundColor Green
+& $python (Join-Path $Root "scriptsuild_demo_books.py")
+if ($LASTEXITCODE -ne 0) { throw "Demo book generation failed." }
+
 $spec = Join-Path $PSScriptRoot "OfficeMitra.spec"
 $pyiArgs = @("--noconfirm", $spec)
 if (-not $SkipClean) { $pyiArgs = @("--noconfirm", "--clean", $spec) }

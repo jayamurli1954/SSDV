@@ -42,7 +42,7 @@ class Entitlements:
         if self.mode == "licensed" and self.license is not None:
             return self.license.summary_line()
         if self.mode == "trial":
-            return f"Free trial: {self.company_limit} client, {self.plan_name} features"
+            return f"Free trial: {self.company_limit} client book (demo books don't count)"
         return "Developer mode: all features, no client limit"
 
 
