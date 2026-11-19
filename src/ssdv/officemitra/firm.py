@@ -14,7 +14,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ssdv.connectors.base import ConnectorError
 from ssdv.db import create_schema, make_engine, session_scope
-from ssdv.licensing import load_license
 from ssdv.mis import mis_snapshot
 from ssdv.mis.runway import runway_text
 from ssdv.models import Voucher
@@ -89,10 +88,9 @@ def discover_vaults(data_dir: Path | None = None) -> list[Path]:
 
 
 def effective_company_limit() -> int | None:
-    license_obj = load_license()
-    if license_obj is None:
-        return None
-    return int(license_obj.company_limit)
+    from ssdv.officemitra.entitlements import current_entitlements
+
+    return current_entitlements().company_limit
 
 
 def apply_company_limit(

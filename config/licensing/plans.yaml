@@ -1,6 +1,32 @@
 # OfficeMitra plan definitions — keep in sync with docs/PRICING.md
 
 plans:
+  # Used by the installed app when no valid licence is present: 1 client, Professional features.
+  trial:
+    name: Free trial
+    company_limit: 1
+    price_inr: 0
+    amc_inr: 0
+    features:
+      ceo_pack: true
+      cfo_pack: true
+      board_pack: true
+      chart_pack: true
+      connect_csv: true
+      connect_tally_xml: true
+      connect_tally_http: false
+      whatif: true
+      parties_intel: true
+      benchmarks: true
+      dupont_roe: true
+      msme_43bh: true
+      gstr2b_recon: false
+      export_excel_ppt: true
+      ask_why: false
+      budget_variance: true
+      alert_thresholds: true
+      partner_approval: false
+
   starter:
     name: Starter
     company_limit: 1
@@ -22,6 +48,9 @@ plans:
       gstr2b_recon: false
       export_excel_ppt: false
       ask_why: false
+      budget_variance: false
+      alert_thresholds: false
+      partner_approval: false
 
   professional:
     name: Professional
@@ -45,6 +74,9 @@ plans:
       gstr2b_recon: false
       export_excel_ppt: true
       ask_why: false
+      budget_variance: true
+      alert_thresholds: true
+      partner_approval: false
 
   enterprise:
     name: Enterprise
@@ -67,6 +99,9 @@ plans:
       gstr2b_recon: true
       export_excel_ppt: true
       ask_why: false
+      budget_variance: true
+      alert_thresholds: true
+      partner_approval: true
 
   ca_5:
     name: CA Pack (5 clients)
@@ -89,6 +124,9 @@ plans:
       gstr2b_recon: true
       export_excel_ppt: true
       ask_why: true
+      budget_variance: true
+      alert_thresholds: true
+      partner_approval: true
 
   ca_20:
     name: CA Pack (20 clients)
@@ -111,6 +149,9 @@ plans:
       gstr2b_recon: true
       export_excel_ppt: true
       ask_why: true
+      budget_variance: true
+      alert_thresholds: true
+      partner_approval: true
 
   ca_50:
     name: CA Pack (50 clients)
@@ -133,3 +174,6 @@ plans:
       gstr2b_recon: true
       export_excel_ppt: true
       ask_why: true
+      budget_variance: true
+      alert_thresholds: true
+      partner_approval: true

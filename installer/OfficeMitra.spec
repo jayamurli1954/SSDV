@@ -38,6 +38,7 @@ for pkg in (
     "openpyxl",
     "pptx",
     "lxml",
+    "cryptography",
     "certifi",
     "charset_normalizer",
     "anyio",

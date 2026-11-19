@@ -107,6 +107,11 @@ li { margin-bottom: 0.3rem; }
 <p><strong>Windows:</strong> download <strong>OfficeMitra-Setup.exe</strong> → Next → Install → double-click <strong>OfficeMitra</strong> on the desktop.</p>
 <p><strong>Mac:</strong> download <strong>OfficeMitra.dmg</strong> → drag <strong>OfficeMitra</strong> to <strong>Applications</strong> → open it (first time: right-click → <strong>Open</strong>).</p>
 <p>You do <strong>not</strong> need Python. Full steps: <a href="CLIENT_INSTALL.md">CLIENT_INSTALL.md</a>.</p>
+<h3>Licence and free trial</h3>
+<p>Without a licence, OfficeMitra runs as a <strong>free trial</strong>: 1 client book with Professional features. When you buy a plan, SanMitra sends a signed file ending in <code>.officemitra.license</code>. Save it as:</p>
+<li>Windows: `C:\Users\<you>\.officemitra\officemitra.license`</li>
+<li>Mac: `~/.officemitra/officemitra.license`</li>
+<p>Close and reopen OfficeMitra. The left sidebar shows your plan, AMC date and how many client books it allows. If a feature is not in your plan, the screen shows a short note instead.</p>
 <hr>
 <h2>4. Daily workflow</h2>
 <pre><code>
@@ -311,6 +316,7 @@ Sales Account,410000
 <tr><td>**Connect vault already has data**</td><td>Tick **Replace books**</td></tr>
 <tr><td>**Ask Why does nothing**</td><td>Ollama is optional — install separately; KPI packs work without it</td></tr>
 <tr><td>**Edge screenshot cuts off page**</td><td>Use **Download full report (HTML)** or **Board pack (PDF)**</td></tr>
+<tr><td>**"Licence not accepted" in the sidebar**</td><td>The licence file was edited, is an old unsigned file, or is for another PC. Ask SanMitra for a new licence file.</td></tr>
 <tr><td>**No Download Board PPT**</td><td>Quality below 70, or books not marked reviewed for this as-of. Add a budget file if the caption asks for one, then **Mark books reviewed**.</td></tr>
 <tr><td>**Not reviewed after reload**</td><td>Expected. A new extract or a different as-of date needs a fresh review.</td></tr>
 </table>

@@ -244,6 +244,15 @@ def render_setup_wizard() -> None:
     )
     choice = by_label[selected_label]
 
+    gate = {"tally": "connect_tally_xml", "tally-http": "connect_tally_http"}.get(choice.id)
+    if gate:
+        from ssdv.officemitra.entitlements import current_entitlements, upgrade_note
+
+        ent = current_entitlements()
+        if not ent.allows(gate):
+            st.warning(upgrade_note(gate, ent))
+            return
+
     st.info(choice.hint)
 
     company_name = st.text_input("Company name (shown on reports)", value="")

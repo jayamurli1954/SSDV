@@ -120,6 +120,14 @@ Google Drive "You need access"
 
 
 ------------------------------------------------
+Licence
+------------------------------------------------
+Without a licence the app is a free trial (1 client book). Your CA Pack
+licence arrives as a .officemitra.license file. Save it as
+C:\Users\<you>\.officemitra\officemitra.license and reopen OfficeMitra.
+The sidebar shows the plan and how many client books it allows.
+
+------------------------------------------------
 Support
 ------------------------------------------------
 Email: contact@sanmitratech.in

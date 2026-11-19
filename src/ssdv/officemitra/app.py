@@ -38,6 +38,7 @@ from ssdv.officemitra.charts import (
     scorecard_points,
 )
 from ssdv.officemitra.dashboard import render_dashboard
+from ssdv.officemitra.entitlements import Entitlements, current_entitlements, upgrade_note
 from ssdv.officemitra.export import write_excel, write_ppt
 from ssdv.officemitra.firm import (
     apply_company_limit,
@@ -328,6 +329,25 @@ def _party_oldest(row: dict) -> str:
     if days is None:
         return "unaged"
     return f"{days} d"
+
+
+_ENT: Entitlements | None = None
+
+
+def _ent() -> Entitlements:
+    global _ENT
+    if _ENT is None:
+        _ENT = current_entitlements()
+    return _ENT
+
+
+def _allowed(feature: str, *, note: bool = True) -> bool:
+    """True if this plan includes ``feature``; otherwise optionally show an upgrade note."""
+    if _ent().allows(feature):
+        return True
+    if note:
+        st.caption(upgrade_note(feature, _ent()))
+    return False
 
 
 def _render_parties(payload: dict, *, vendors: bool = True, limit: int | None = None) -> None:
@@ -700,10 +720,13 @@ def _render_ceo(payload: dict, db_path: str, as_of: date) -> None:
             continue
         _note(str(item.get("tone") or "neutral"), str(item.get("text") or ""))
     _metrics(pack_tiles(payload, "ceo"))
-    _render_parties(payload, vendors=False)
-    _render_benchmarks(payload)
-    _render_whatif(payload)
-    _render_runway_sandbox(payload)
+    if _allowed("parties_intel"):
+        _render_parties(payload, vendors=False)
+    if _allowed("benchmarks"):
+        _render_benchmarks(payload)
+    if _allowed("whatif"):
+        _render_whatif(payload)
+        _render_runway_sandbox(payload)
     left, right = st.columns(2, gap="large")
     with left:
         _multi_line(payload, [("sales", "Taxable sales"), ("cogs", "COGS")], "Sales vs COGS")
@@ -721,8 +744,10 @@ def _render_ceo(payload: dict, db_path: str, as_of: date) -> None:
         st.markdown("##### Why (from posted books)")
         for item in why_items:
             _note(str(item.get("tone") or "neutral"), str(item.get("text") or ""))
-    prompts = list(payload.get("why_prompts") or [])
     st.markdown("##### Ask why")
+    if not _allowed("ask_why"):
+        return
+    prompts = list(payload.get("why_prompts") or [])
     chosen = None
     if prompts:
         cols = st.columns(min(3, len(prompts)))
@@ -873,7 +898,8 @@ def _render_client_chart(payload: dict) -> None:
 def _render_cfo(payload: dict) -> None:
     st.markdown('<div class="om-kicker">CFO pack</div>', unsafe_allow_html=True)
     _metrics(pack_tiles(payload, "cfo"))
-    _render_budget_variance(payload)
+    if _allowed("budget_variance"):
+        _render_budget_variance(payload)
     _render_client_chart(payload)
     st.markdown("##### Cash forecast (open AR/AP, no sales plan)")
     fc = payload.get("cash_forecast") or {}
@@ -913,7 +939,8 @@ def _render_cfo(payload: dict) -> None:
         _bars(aging_points(payload, "ar_aging"), "AR aging (bars)")
     with right:
         _bars(aging_points(payload, "ap_aging"), "AP aging (bars)")
-    _render_parties(payload)
+    if _allowed("parties_intel"):
+        _render_parties(payload)
     left, right = st.columns(2, gap="large")
     with left:
         _multi_line(
@@ -1000,8 +1027,10 @@ def _render_board(payload: dict) -> None:
     if rows:
         st.write("")
         st.dataframe(rows, use_container_width=True, hide_index=True)
-    _render_benchmarks(payload)
-    _render_parties(payload, limit=5)
+    if _allowed("benchmarks", note=False):
+        _render_benchmarks(payload)
+    if _allowed("parties_intel", note=False):
+        _render_parties(payload, limit=5)
 
 
 def _render_charts(payload: dict) -> None:
@@ -1281,8 +1310,10 @@ def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> Non
             mark_reviewed(Path(db_path), as_of, session=session, reviewed_by=prepared_by)
         st.cache_data.clear()
         st.rerun()
-    _render_partner_approval(payload, db_path, as_of)
-    _render_thresholds(payload, db_path)
+    if _allowed("partner_approval", note=False):
+        _render_partner_approval(payload, db_path, as_of)
+    if _allowed("alert_thresholds", note=False):
+        _render_thresholds(payload, db_path)
     st.download_button(
         "Download full report (HTML)",
         data=render_dashboard(payload).encode("utf-8"),
@@ -1290,28 +1321,31 @@ def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> Non
         mime="text/html",
         help="Open this file in Edge, then Ctrl+P and Save as PDF if you want a full-page print.",
     )
-    st.download_button(
-        "Download Board pack (PDF)",
-        data=render_board_pdf(payload),
-        file_name=f"officemitra-board-{payload.get('as_of')}.pdf",
-        mime="application/pdf",
-        help="Automated Board pack from posted journals. Recommend-only.",
-    )
-    excel_bytes = _excel_bytes(payload)
-    st.download_button(
-        "Download Excel",
-        data=excel_bytes,
-        file_name=f"officemitra-{payload.get('as_of')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-    if payload.get("ppt_allowed"):
+    if _allowed("board_pack", note=False):
+        st.download_button(
+            "Download Board pack (PDF)",
+            data=render_board_pdf(payload),
+            file_name=f"officemitra-board-{payload.get('as_of')}.pdf",
+            mime="application/pdf",
+            help="Automated Board pack from posted journals. Recommend-only.",
+        )
+    exports_ok = _allowed("export_excel_ppt")
+    if exports_ok:
+        st.download_button(
+            "Download Excel",
+            data=_excel_bytes(payload),
+            file_name=f"officemitra-{payload.get('as_of')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    ppt_plan_ok = exports_ok and _ent().allows("board_pack")
+    if ppt_plan_ok and payload.get("ppt_allowed"):
         st.download_button(
             "Download Board PPT",
             data=_ppt_bytes(payload),
             file_name=f"officemitra-board-{payload.get('as_of')}.pptx",
             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         )
-    else:
+    elif ppt_plan_ok:
         st.caption(
             "Board PPT stays blocked until quality is at least 70, books are reviewed"
             + (
@@ -1320,6 +1354,10 @@ def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> Non
                 else "."
             )
         )
+    screen_feature = {"CFO": "cfo_pack", "Board": "board_pack", "Charts": "chart_pack"}.get(screen)
+    if screen_feature and not _ent().allows(screen_feature):
+        _note("warning", upgrade_note(screen_feature, _ent()))
+        return
     if screen == "CEO":
         _render_ceo(payload, db_path, as_of)
     elif screen == "CFO":
@@ -1331,6 +1369,8 @@ def _render_report(payload: dict, db_path: str, as_of: date, screen: str) -> Non
 
 
 def main() -> None:
+    global _ENT
+    _ENT = current_entitlements()
     cli = _cli()
     st.markdown(_CSS, unsafe_allow_html=True)
     if "as_of" not in st.session_state:
@@ -1399,6 +1439,10 @@ def main() -> None:
             st.session_state["show_setup"] = True
             st.session_state.pop("setup_complete", None)
             st.rerun()
+        ent = _ent()
+        st.caption(ent.status_line())
+        if ent.problem:
+            st.warning(f"Licence not accepted: {ent.problem}")
         st.write("Unbalanced books never get a chart. Same facts as `ssdv mis --json`.")
         with st.expander("Full-page screenshot"):
             st.write(

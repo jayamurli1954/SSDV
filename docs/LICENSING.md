@@ -1,6 +1,6 @@
-# OfficeMitra license file format
+# OfficeMitra licence files
 
-License files gate **which packs, connectors, and company count** a installation may use. Validation runs locally — no phone-home required for v1.
+A licence file decides **which packs, connectors and how many client books** an installation may use. Each licence is **signed by SanMitra**. The app checks the signature with a public key built into it, so a licence cannot be created or edited by hand. Checking runs locally; nothing is sent over the internet.
 
 ---
 
@@ -8,131 +8,110 @@ License files gate **which packs, connectors, and company count** a installation
 
 | Path | Purpose |
 | --- | --- |
-| `%USERPROFILE%\.officemitra\officemitra.license` | Per-user license (recommended) |
+| `%USERPROFILE%\.officemitra\officemitra.license` (Windows) | Per-user licence (recommended) |
+| `~/.officemitra/officemitra.license` (Mac) | Per-user licence (recommended) |
 | `{install_dir}\officemitra.license` | Fallback next to the app |
+
+Copy the file there and restart OfficeMitra. The sidebar shows the plan, AMC date and client limit, or why a licence file was not accepted.
 
 ---
 
-## JSON schema (v1)
+## Without a licence
+
+| How OfficeMitra runs | No valid licence means |
+| --- | --- |
+| Installed app (Windows/Mac installer) | **Free trial**: 1 client book, Professional features (`trial` plan) |
+| From source (developers, tests) | Developer mode: everything, no limit. Set `OFFICEMITRA_FORCE_TRIAL=1` to see trial behaviour |
+
+---
+
+## JSON schema (v2, signed)
 
 ```json
 {
-  "schema_version": 1,
-  "license_id": "OM-2026-00042",
+  "schema_version": 2,
+  "license_id": "OM-2026-1A2B3C4D",
   "customer_name": "ABC Traders Pvt Ltd",
   "gstin": "29AABCU9603R1ZM",
   "plan_id": "professional",
   "company_limit": 1,
   "issued_at": "2026-04-01",
   "amc_expires_at": "2027-03-31",
-  "machine_id": "optional-host-fingerprint",
-  "features": {}
+  "machine_id": "OPTIONAL-PC-NAME",
+  "signature": "base64 Ed25519 signature"
 }
 ```
 
 | Field | Required | Description |
 | --- | --- | --- |
-| `schema_version` | Yes | Always `1` for this format |
+| `schema_version` | Yes | Always `2`. Old unsigned `1` files are refused: issue a new licence |
 | `license_id` | Yes | SanMitra serial (support reference) |
-| `customer_name` | Yes | Shown in MIS / Board pack |
-| `gstin` | No | 15-char GSTIN if B2B |
-| `plan_id` | Yes | One of: `starter`, `professional`, `enterprise`, `ca_5`, `ca_20`, `ca_50` |
-| `company_limit` | Yes | Max active company vaults |
+| `customer_name` | Yes | Shown in the app |
+| `gstin` | No | 15-character GSTIN |
+| `plan_id` | Yes | `starter`, `professional`, `enterprise`, `ca_5`, `ca_20`, `ca_50` (or `trial` for an extended trial) |
+| `company_limit` | Yes | Max client books; cannot exceed the plan's limit |
 | `issued_at` | Yes | ISO date |
-| `amc_expires_at` | Yes | ISO date — updates/support valid until |
-| `machine_id` | No | Optional bind to one PC (empty = any) |
-| `features` | No | Overrides; normally derived from `plan_id` |
+| `amc_expires_at` | Yes | ISO date; updates/support valid until |
+| `machine_id` | No | Binds the licence to one Windows computer name |
+| `features` | No | Per-customer overrides, e.g. `{"ask_why": true}` |
+| `signature` | Yes | Ed25519 signature over every other field (sorted, compact JSON) |
+
+Changing any field breaks the signature and the app falls back to the trial.
 
 ---
 
-## Plan IDs (code)
+## Plan IDs and features
 
-Defined in `config/licensing/plans.yaml` and loaded via `ssdv.licensing`.
+Defined in `config/licensing/plans.yaml`. The app enforces them per screen and per feature.
 
-| `plan_id` | Display name | Companies |
-| --- | --- | ---: |
-| `starter` | Starter | 1 |
-| `professional` | Professional | 1 |
-| `enterprise` | Enterprise | 5 |
-| `ca_5` | CA Pack (5) | 5 |
-| `ca_20` | CA Pack (20) | 20 |
-| `ca_50` | CA Pack (50) | 50 |
-
----
-
-## Feature flags (derived from plan)
-
-| Flag | Meaning |
+| Flag | What it unlocks |
 | --- | --- |
-| `ceo_pack` | CEO dashboard |
-| `cfo_pack` | CFO dashboard |
-| `board_pack` | Board dashboard + PDF |
-| `chart_pack` | Chart pack |
-| `connect_csv` | Generic CSV connect |
-| `connect_tally_xml` | Tally DayBook XML |
-| `connect_tally_http` | TallyPrime live HTTP |
-| `whatif` | What-if scenarios |
-| `parties_intel` | Top overdue / vendor tables |
-| `benchmarks` | ABC baseline benchmarks |
+| `ceo_pack` | CEO pack |
+| `cfo_pack` | CFO pack screen |
+| `board_pack` | Board pack screen, Board PDF |
+| `chart_pack` | Chart pack screen |
+| `connect_csv` | CSV import |
+| `connect_tally_xml` | Tally DayBook XML import |
+| `connect_tally_http` | Live TallyPrime connection |
+| `whatif` | What-if scenarios and runway sandbox |
+| `parties_intel` | Customer / supplier tables |
+| `benchmarks` | Industry benchmarks |
 | `dupont_roe` | DuPont ROE tile |
-| `msme_43bh` | MSME 43B(h) analyzer |
-| `gstr2b_recon` | GSTR-2B ITC reconciliation |
-| `export_excel_ppt` | Excel / PPT export |
-| `ask_why` | Ollama Ask Why |
+| `msme_43bh` | MSME 43B(h) analyser |
+| `gstr2b_recon` | GSTR-2B ITC reconciliation in the quality score |
+| `export_excel_ppt` | Excel and Board PPT downloads |
+| `ask_why` | Ask why |
+| `budget_variance` | Account-level budget vs actual |
+| `alert_thresholds` | Per-client alert thresholds |
+| `partner_approval` | Partner approval (maker-checker) before the Board PPT |
 
-Optional add-ons can set `features.ask_why: true` on Starter/Professional via SanMitra-issued override.
-
----
-
-## Validation rules (v1)
-
-1. `plan_id` must exist in `plans.yaml`.
-2. `company_limit` must match the plan (unless support override in `features`).
-3. If `amc_expires_at` is in the past → app runs in **read-only** or **grace** mode (product decision; not enforced in code yet).
-4. If `machine_id` is set, it must match the current host fingerprint.
+Client chart of accounts and assisted ledger mapping are in every plan.
 
 ---
 
-## Example — Starter
+## Issuing licences (SanMitra internal)
 
-```json
-{
-  "schema_version": 1,
-  "license_id": "OM-2026-00100",
-  "customer_name": "Shree Enterprises",
-  "plan_id": "starter",
-  "company_limit": 1,
-  "issued_at": "2026-04-15",
-  "amc_expires_at": "2027-03-31"
-}
+The private signing key lives **outside the repository**, at
+`%USERPROFILE%\.officemitra-issuer\license_signing_key.pem`. Keep a backup offline (for example an encrypted USB drive). If it is lost, no new licences can be issued until a new key is made and a new app version ships; if it leaks, anyone can issue licences.
+
+```powershell
+# once only: creates the key and writes its public half into src/ssdv/licensing/signing.py
+.venv\Scripts\python.exe scripts\issue_license.py keygen
+
+# issue a licence
+.venv\Scripts\python.exe scripts\issue_license.py issue --plan ca_20 --customer "Patel & Associates" --gstin 24AAAAA0000A1Z5 --amc-months 12 --out patel.officemitra.license
+
+# check a licence
+.venv\Scripts\python.exe scripts\issue_license.py verify patel.officemitra.license
 ```
 
-## Example — CA Pack 20
+Options: `--company-limit` (lower than the plan), `--machine` (bind to a PC name), `--issued YYYY-MM-DD`, `--license-id`.
 
-```json
-{
-  "schema_version": 1,
-  "license_id": "OM-2026-00201",
-  "customer_name": "Patel & Associates",
-  "gstin": "24AAAAA0000A1Z5",
-  "plan_id": "ca_20",
-  "company_limit": 20,
-  "issued_at": "2026-05-01",
-  "amc_expires_at": "2027-03-31"
-}
-```
-
----
-
-## Generating licenses (SanMitra internal)
-
-Until signing is implemented, issue JSON files manually or via an internal script. Fields must match `plans.yaml`.
-
-Future v2: HMAC-signed payload embedded in `license_key` string for tamper resistance.
+`examples/licensing/professional.license.json` shows the format only; its signature is deliberately invalid.
 
 ---
 
 ## Related docs
 
-- [PRICING.md](PRICING.md) — customer-facing prices and matrix
-- [CLIENT_INSTALL.md](CLIENT_INSTALL.md) — install steps
+- [PRICING.md](PRICING.md): customer-facing prices and matrix
+- [CLIENT_INSTALL.md](CLIENT_INSTALL.md): install steps

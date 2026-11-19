@@ -121,6 +121,7 @@ cd D:\SSDV
 </code></pre>
 <p>Sidebar: vault <code>ssdv_connect.sqlite</code>, as of <strong>2024-04-30</strong>, screen <strong>CEO</strong>.</p>
 <h2>5. Streamlit screens</h2>
+<p>Which screens and features appear depends on the plan in the signed licence file (see <a href="LICENSING.md">LICENSING.md</a>). The installed app without a licence is a free trial (1 client book, Professional features); running from source without a licence shows everything.</p>
 <p><img src="client/images/screens-overview.png" alt="OfficeMitra Dashboard Screens Overview"></p>
 <table>
 <tr><th>Screen</th><th>What you see</th></tr>
@@ -317,7 +318,33 @@ OPEN-1,2024-04-01,OPENING,Capital Account,0,500000.00,,,Opening
 <li>a voucher does not balance</li>
 <li>a ledger name is not in the map and is not a known account code</li>
 <li>the file path does not exist</li>
+<h3>7.1a The client's own chart of accounts (optional, recommended for CA firms)</h3>
+<p>Every company numbers and names its ledgers its own way (<code>1001</code>, <code>10001</code>, <code>100001</code>; "SBI Current A/c", "Office Rent", "Shop Rent"). OfficeMitra keeps both views:</p>
+<li>**The client's own chart** — every imported journal line remembers the ledger it came from: its code, name and group, exactly as in the client's books.</li>
+<li>**The standard chart** — each client ledger is also classified under one standard ledger, so KPIs, packs and firm-wide comparisons work the same for every client.</li>
+<p>To give OfficeMitra the client's chart, upload a CSV in <strong>Connect</strong> under *Your chart of accounts* (or <code>ssdv connect --chart client_coa.csv</code>):</p>
+<pre><code>
+code,name,group
+1001,Cash in Hand,Cash-in-Hand
+1101,SBI Current A/c,Bank Accounts
+6101,Office Rent,Indirect Expenses
+6102,Shop Rent,Indirect Expenses
+</code></pre>
+<p><code>code</code> and <code>group</code> are optional. For live TallyPrime, the ledger list and groups are pulled automatically. The chart is saved beside the vault as <code><vault-stem>.clientchart.csv</code> and reused on every later import.</p>
+<p>With a chart loaded:</p>
+<li>A client code is **never** read as a standard code of the same digits. If a client's `110000` means "HDFC Bank", it goes to the **Confirm ledger mapping** screen instead of silently posting to standard `110000 Cash`. That screen shows the client's name and group, and uses the group to suggest the standard ledger.</li>
+<li>The CFO pack has **Books in the client's own chart of accounts**: a year-to-date P&L subtotalled by the client's groups and a trial balance in the client's codes, each with the standard ledger beside it. Ledgers that share a standard ledger (Office Rent and Shop Rent → Rent) stay separate here.</li>
+<li>**Download Excel** adds *TB (client chart)* and *P&L (client chart)* sheets.</li>
+<p>Books imported before this feature show the standard ledger with "(standard)" in the client view until they are imported again.</p>
+<p><strong>Banks and cash.</strong> The standard chart has only a few bank slots (two current accounts and one overdraft), but the packs never show slot names for an imported client. The CFO pack's *Cash and bank position* chart and the bank line in the notes list each of the client's own bank and cash ledgers by name and balance (for example SBI Current A/c, Axis Current A/c, Kotak Current A/c, SBI OD A/c), even when several share one slot. For imported clients, cash in hand counts towards cash (and so towards runway).</p>
+<p><strong>Overdraft limit.</strong> For an imported client, set the sanctioned limit in the same <code><vault-stem>.budget.yaml</code> file:</p>
+<pre><code>
+od_limit: 2500000
+</code></pre>
+<p>Without it, the *OD utilisation* tile reads *Limit not set* instead of a percentage. The sample company's limit is never applied to client books.</p>
 <h3>7.2 Ledger map (strongly recommended)</h3>
+<p><strong>Assisted mapping in the app.</strong> You no longer have to write the map by hand. When you import through <strong>Connect</strong>, OfficeMitra reads the export first and lists every ledger that the saved map for that client does not cover, on a <strong>Confirm ledger mapping</strong> screen. Each row shows the ledger, its line count and debit/credit totals, why a ledger was suggested, and a <strong>Map to</strong> drop-down. Confident suggestions (party ledgers on sales or purchase vouchers, keyword matches, close name matches) are pre-selected; anything else is left blank and blocks the import until you choose. Nothing is posted until you press <strong>Save mapping and import</strong>.</p>
+<p>Your confirmed choices are saved next to the vault as <code><vault-stem>.ledgermap.yaml</code> and reused on every later import of that client — from the app or from <code>ssdv connect</code> when no <code>--map</code> is given — so only new ledgers come up for review. A map file you upload overrides the saved one for the ledgers it names. This also applies to live TallyPrime: the DayBook is pulled once, reviewed, then imported.</p>
 <p>CSV columns: <code>source,account_code</code></p>
 <p><code>source</code> is the name as it appears in the journal CSV. <code>account_code</code> is an SSDV code from the chart of accounts.</p>
 <pre><code>
@@ -367,6 +394,34 @@ Capital Account,310000
 <tr><td>660000</td><td>GST late fee</td></tr>
 </table>
 <p>Full list: <code>src/ssdv/data/coa.yaml</code>.</p>
+<h3>7.3a Partner approval (optional second sign-off)</h3>
+<p>For firms that want a maker-checker step before a Board PPT goes out:</p>
+<p>1. Open any client book and expand <strong>Partner approval (off)</strong> under the pack header. Enter the partner's name and a PIN (4+ characters) and press <strong>Turn on partner approval</strong>. This applies to every client book on this PC.</p>
+<p>2. The preparer types their name in <strong>Prepared by</strong> and presses <strong>Mark books reviewed for this as-of</strong>. The header shows *Reviewed — awaiting partner approval*.</p>
+<p>3. The partner enters the PIN and presses <strong>Approve as partner</strong>. The header shows *Approved by <partner>*, the Board PPT download unlocks, and its first slide carries *Prepared by* and *Approved by* lines. The client roster shows *approved* for that book.</p>
+<p>Approval is tied to the as-of date and the voucher count that were reviewed: a new import or a different as-of date needs a fresh review and approval. The partner can <strong>Withdraw approval</strong> or <strong>Turn off partner approval</strong> with the PIN. With approval on, <code>ssdv dashboard --ppt</code> is also blocked until the partner approves in the app.</p>
+<p>The PIN is stored only as a salted hash in <code>approval.json</code> in the OfficeMitra data folder. This is a sign-off record, not a login: someone with access to that folder on the PC can delete the file and remove the gate.</p>
+<h3>7.3b Alert thresholds per client (optional)</h3>
+<p>Every alert, scorecard row, benchmark, what-if and the firm roster's red / amber / green band use a set of limits. The defaults suit a trading business; change them per client so, for example, a distributor that gives 90-day credit is not flagged at the same DSO as a cash retailer.</p>
+<p>Open a client book and expand <strong>Alert thresholds (defaults)</strong> under the pack header, change the numbers and press <strong>Save thresholds for this client</strong>. Ratios are entered as percentages. The heading then reads *custom for this client*; <strong>Reset to defaults</strong> removes the overrides.</p>
+<table>
+<tr><th>Threshold</th><th>Default</th></tr>
+<tr><td>DSO limit</td><td>120 days</td></tr>
+<tr><td>Collections at least</td><td>80% of sales</td></tr>
+<tr><td>Top customer under</td><td>35% of sales</td></tr>
+<tr><td>Top vendor under</td><td>55% of purchases</td></tr>
+<tr><td>COGS under</td><td>84% of sales</td></tr>
+<tr><td>Inventory under</td><td>45% of sales</td></tr>
+<tr><td>Receivables stress above</td><td>30% of sales</td></tr>
+<tr><td>Runway red below</td><td>3 months</td></tr>
+<tr><td>Runway amber below</td><td>6 months</td></tr>
+</table>
+<p>Only the changed limits are saved, in <code><vault-stem>.thresholds.yaml</code> beside the vault, for example:</p>
+<pre><code>
+dso_days_max: 90
+runway_amber_months: 9.0
+</code></pre>
+<p>Alert wording follows the client's limits ("DSO 100 days exceeds 90-day policy"). Other client books keep their own settings or the defaults.</p>
 <h3>7.4 Sales budget sidecar (optional)</h3>
 <p>For an imported vault, save a YAML file <strong>next to</strong> the SQLite file, named <code><vault-stem>.budget.yaml</code> (<code>.yml</code> is also accepted).</p>
 <p>Example for <code>data\ssdv_sample-traders-pvt-ltd.sqlite</code>:</p>
@@ -382,6 +437,14 @@ fy:
 </code></pre>
 <p>Keys accepted: <code>sales</code>, <code>revenue</code>, or <code>fy:</code> map. Without this file, imported books lose 12 quality points and the pack caption asks you to add it. Generated ABC books use the company plan instead.</p>
 <p>Sample: <code>examples\generic_ingest\budget.yaml</code>. Copy it beside the client vault and rename to match the stem.</p>
+<p><strong>Account budgets (variance drivers).</strong> Add an <code>accounts:</code> section to the same file to get <strong>Budget vs actual — variance drivers</strong> in the CFO pack and a <strong>Budget variance</strong> sheet in the Excel export:</p>
+<pre><code>
+sales: 180000
+accounts:
+  "410000": 2190000   # ledger code ...
+  Rent: 182500        # ... or ledger name
+</code></pre>
+<p>Amounts are for the full financial year and are pro-rated by days elapsed to the as-of date. Add <code>budget_basis: to_date</code> if your amounts are already year-to-date. To keep several years in one file, nest the ledgers under the FY code (<code>accounts: {FY2025-26: {...}}</code>). Actuals are posted income and expense ledgers (closing entries excluded). The table shows the five ledgers that moved profit most; budget lines that match no ledger are listed as a warning. The <code>sales:</code> line is still what the quality score checks.</p>
 <h2>8. PowerShell CLI reference</h2>
 <p>Global flag (before the subcommand):</p>
 <pre><code>

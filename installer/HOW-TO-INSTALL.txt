@@ -63,6 +63,16 @@ Your data stays on this computer. OfficeMitra is read-only —
 it never writes back to Tally, Zoho, or Busy.
 
 
+LICENCE
+-------
+Without a licence OfficeMitra runs as a free trial: 1 client book,
+Professional features. When you buy a plan, SanMitra emails you a file
+ending in .officemitra.license. Rename it to officemitra.license and copy it to:
+  Windows: C:\Users\<you>\.officemitra\officemitra.license
+  Mac:     ~/.officemitra/officemitra.license
+then close and reopen OfficeMitra. The left sidebar shows your plan.
+
+
 NEED HELP?
 ----------
 Email: contact@sanmitratech.in

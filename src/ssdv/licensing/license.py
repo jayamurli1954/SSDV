@@ -7,8 +7,11 @@ from datetime import date
 from pathlib import Path
 
 from ssdv.licensing.plans import PlanSpec, load_plans, plan_for
+from ssdv.licensing.signing import verify_signature
 from ssdv.paths import install_dir as default_install_dir
 from ssdv.paths import repo_root, user_data_dir
+
+SCHEMA_VERSION = 2
 
 
 class LicenseError(Exception):
@@ -73,9 +76,20 @@ def parse_license_payload(data: dict, *, source: Path | None = None) -> License:
     if not isinstance(data, dict):
         raise LicenseError("License file must be a JSON object")
 
-    schema_version = int(data.get("schema_version", 0))
-    if schema_version != 1:
+    try:
+        schema_version = int(data.get("schema_version", 0))
+    except (TypeError, ValueError) as exc:
+        raise LicenseError("schema_version must be a number") from exc
+    if schema_version == 1:
+        raise LicenseError(
+            "This is an old unsigned licence file. Ask SanMitra for a new signed licence."
+        )
+    if schema_version != SCHEMA_VERSION:
         raise LicenseError(f"Unsupported schema_version {schema_version}")
+    if not verify_signature(data):
+        raise LicenseError(
+            "Licence signature is missing or invalid (the file was changed or not issued by SanMitra)"
+        )
 
     plan_id = str(data.get("plan_id") or "").strip()
     if not plan_id:
@@ -158,3 +172,18 @@ def load_license(
                 )
         return license_obj
     return None
+
+
+def license_status(*, install_dir: Path | None = None) -> tuple[License | None, str | None]:
+    """Return (licence, problem). ``problem`` explains why a licence file found was rejected."""
+    problem: str | None = None
+    for path in resolve_license_paths(install_dir):
+        if not path.is_file():
+            continue
+        try:
+            return load_license(install_dir=install_dir, explicit_path=path), None
+        except LicenseError as exc:
+            problem = problem or f"{path}: {exc}"
+        except (OSError, json.JSONDecodeError) as exc:
+            problem = problem or f"{path}: unreadable ({exc})"
+    return None, problem

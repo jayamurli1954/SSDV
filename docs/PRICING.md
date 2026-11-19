@@ -126,7 +126,8 @@ Software is the entry ticket; consulting is margin.
 | --- | --- |
 | Plan definitions (`config/licensing/plans.yaml`) | Done |
 | License schema (`src/ssdv/licensing/`) | Done |
-| UI enforcement (gate packs/connectors by plan) | Planned |
-| Signed license keys | Planned (v2) |
+| UI enforcement (gate packs/connectors by plan) | Done |
+| Signed licence files (Ed25519, `scripts/issue_license.py`) | Done |
+| Free trial without a licence (1 client, Professional features) | Done |
 
 See **[LICENSING.md](LICENSING.md)** for the license file format and plan IDs used in code.

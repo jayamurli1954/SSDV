@@ -112,6 +112,8 @@ Sidebar: vault `ssdv_connect.sqlite`, as of **2024-04-30**, screen **CEO**.
 
 ## 5. Streamlit screens
 
+Which screens and features appear depends on the plan in the signed licence file (see [LICENSING.md](LICENSING.md)). The installed app without a licence is a free trial (1 client book, Professional features); running from source without a licence shows everything.
+
 ![OfficeMitra Dashboard Screens Overview](client/images/screens-overview.png)
 
 | Screen | What you see |

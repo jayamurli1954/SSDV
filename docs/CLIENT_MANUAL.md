@@ -86,6 +86,15 @@ OfficeMitra turns your **exported accounting journals** into clear **CEO, CFO, a
 
 You do **not** need Python. Full steps: [CLIENT_INSTALL.md](CLIENT_INSTALL.md).
 
+### Licence and free trial
+
+Without a licence, OfficeMitra runs as a **free trial**: 1 client book with Professional features. When you buy a plan, SanMitra sends a signed file ending in `.officemitra.license`. Save it as:
+
+- Windows: `C:\Users\<you>\.officemitra\officemitra.license`
+- Mac: `~/.officemitra/officemitra.license`
+
+Close and reopen OfficeMitra. The left sidebar shows your plan, AMC date and how many client books it allows. If a feature is not in your plan, the screen shows a short note instead.
+
 ---
 
 ## 4. Daily workflow
@@ -377,6 +386,7 @@ More detail: [USER_MANUAL.md](USER_MANUAL.md) section 9.
 | **Connect vault already has data** | Tick **Replace books** |
 | **Ask Why does nothing** | Ollama is optional — install separately; KPI packs work without it |
 | **Edge screenshot cuts off page** | Use **Download full report (HTML)** or **Board pack (PDF)** |
+| **"Licence not accepted" in the sidebar** | The licence file was edited, is an old unsigned file, or is for another PC. Ask SanMitra for a new licence file. |
 | **No Download Board PPT** | Quality below 70, or books not marked reviewed for this as-of. Add a budget file if the caption asks for one, then **Mark books reviewed**. |
 | **Not reviewed after reload** | Expected. A new extract or a different as-of date needs a fresh review. |
 
