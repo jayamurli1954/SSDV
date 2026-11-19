@@ -18,7 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.2", "ruff>=0.5"]
 ui = [
-    # 1.62+ switched to a uvicorn server that cannot find its page in the PyInstaller build ("Not Found").
+    # Tested with 1.61; check the packaged app before raising this cap.
     "streamlit>=1.36,<1.62",
     "altair>=5",
     "pandas>=2",

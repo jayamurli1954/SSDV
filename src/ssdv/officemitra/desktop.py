@@ -99,6 +99,10 @@ def _run_streamlit(app: Path, db: Path) -> None:
     args = ["--db", str(db)]
     from streamlit.web import bootstrap
 
+    # `streamlit run` applies these before starting; bootstrap.run() alone does not.
+    # Without it a PyInstaller build defaults to development mode (Streamlit is not
+    # under site-packages there) and serves no page, only "Not Found".
+    bootstrap.load_config_options(flag_options=flag_options)
     bootstrap.run(str(app), False, args, flag_options)
 
 
